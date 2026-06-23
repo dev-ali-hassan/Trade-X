@@ -6,6 +6,31 @@ export type LocalSession = {
   email: string;
 };
 
+export type StoredAnalysis = {
+  trend: string;
+  pattern: string;
+  candlestick: string;
+  support: string;
+  resistance: string;
+  entry: string;
+  stopLoss: string;
+  target: string;
+  score: number;
+  risk: string;
+  advice: string;
+  confidence?: number;
+  riskReward?: string;
+  profitLoss?: number;
+  setupQuality?: string;
+  validationSummary?: string;
+  warnings?: string[];
+  suggestions?: string[];
+  mistakes?: string[];
+  pair?: string;
+  direction?: string;
+  createdAt: string;
+};
+
 type LocalUser = {
   name: string;
   email: string;
@@ -30,6 +55,7 @@ export function clearSession() {
 export function createDemoSession(): LocalSession {
   const session: LocalSession = { mode: "demo", name: "Demo Trader", email: "demo@local" };
   localStorage.setItem("tradex_demo_trades", JSON.stringify([]));
+  localStorage.removeItem("tradex_demo_latest_analysis");
   saveSession(session);
   return session;
 }
@@ -77,6 +103,16 @@ export function saveTrade(session: LocalSession, trade: Trade) {
   localStorage.setItem(tradeKey(session), JSON.stringify(next));
 }
 
+export function getLatestAnalysis(session: LocalSession | null): StoredAnalysis | null {
+  if (!session) return null;
+
+  return readJson<StoredAnalysis | null>(analysisKey(session), null);
+}
+
+export function saveLatestAnalysis(session: LocalSession, analysis: StoredAnalysis) {
+  localStorage.setItem(analysisKey(session), JSON.stringify(analysis));
+}
+
 function getUsers(): LocalUser[] {
   return readJson<LocalUser[]>(USERS_KEY, []);
 }
@@ -90,6 +126,10 @@ function ensureTradeKey(session: LocalSession) {
 
 function tradeKey(session: LocalSession) {
   return session.mode === "demo" ? "tradex_demo_trades" : `tradex_trades_${session.email}`;
+}
+
+function analysisKey(session: LocalSession) {
+  return session.mode === "demo" ? "tradex_demo_latest_analysis" : `tradex_latest_analysis_${session.email}`;
 }
 
 function readJson<T>(key: string, fallback: T): T {

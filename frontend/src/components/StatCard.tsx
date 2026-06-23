@@ -65,10 +65,12 @@ export function StatCard({
 function Sparkline({ data, tone }: { data: number[]; tone: StatCardProps["tone"] }) {
   const width = 180;
   const height = 36;
+  const stroke = tone === "loss" ? "#ef4444" : tone === "ai" ? "#d6a63a" : "#22c55e";
+
   if (data.length < 2) {
     return (
       <div className="mt-4 hidden h-9 w-full max-w-[220px] items-center sm:flex">
-        <div className="h-px w-full rounded-full bg-line" />
+        <div className="h-1 w-full rounded-full opacity-80" style={{ backgroundColor: stroke }} />
       </div>
     );
   }
@@ -83,8 +85,6 @@ function Sparkline({ data, tone }: { data: number[]; tone: StatCardProps["tone"]
       return `${x},${y}`;
     })
     .join(" ");
-  const stroke = tone === "loss" ? "#ef4444" : tone === "ai" ? "#d6a63a" : "#22c55e";
-
   return (
     <svg className="mt-4 hidden h-9 w-full max-w-[220px] opacity-90 transition group-hover:opacity-100 sm:block" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
       <polyline points={points} fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />

@@ -1,18 +1,22 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Activity, BadgeDollarSign, Brain, CandlestickChart, Percent, Scale, ShieldAlert, Zap } from "lucide-react";
 import { StatCard } from "../components/StatCard";
-import { aiInsight, monthlyPerformance } from "../data/sampleData";
-import { getSession, getTrades } from "../lib/storage";
+import { monthlyPerformance } from "../data/sampleData";
+import { getLatestAnalysis, getSession, getTrades, type StoredAnalysis } from "../lib/storage";
 
 const aiTabs = ["Summary", "Levels", "Advice"] as const;
 const tradeFilters = ["All", "Wins", "Losses"] as const;
 
 export function Dashboard() {
+  const navigate = useNavigate();
+  const session = getSession();
   const [loading, setLoading] = useState(true);
   const [aiTab, setAiTab] = useState<(typeof aiTabs)[number]>("Summary");
   const [tradeFilter, setTradeFilter] = useState<(typeof tradeFilters)[number]>("All");
   const [expandedTrade, setExpandedTrade] = useState<number | null>(null);
-  const trades = getTrades(getSession());
+  const trades = getTrades(session);
+  const latestAnalysis = getLatestAnalysis(session);
   const wins = trades.filter((trade) => trade.result === "Win").length;
   const losses = trades.filter((trade) => trade.result === "Loss").length;
   const netProfit = trades.reduce((sum, trade) => sum + trade.profit, 0);
@@ -118,20 +122,26 @@ export function Dashboard() {
               <Brain size={20} />
             </div>
           </div>
-          <div className="mb-5 grid grid-cols-3 gap-2 rounded-lg border border-line bg-[#0b111a] p-1">
-            {aiTabs.map((tab) => (
-              <button
-                key={tab}
-                className={`rounded-md px-2 py-2 text-sm font-semibold transition ${
-                  aiTab === tab ? "bg-ai text-white" : "text-slate-500 hover:text-slate-200"
-                }`}
-                onClick={() => setAiTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-          <AiPanel tab={aiTab} />
+          {latestAnalysis ? (
+            <>
+              <div className="mb-5 grid grid-cols-3 gap-2 rounded-lg border border-line bg-[#0b111a] p-1">
+                {aiTabs.map((tab) => (
+                  <button
+                    key={tab}
+                    className={`rounded-md px-2 py-2 text-sm font-semibold transition ${
+                      aiTab === tab ? "bg-ai text-white" : "text-slate-500 hover:text-slate-200"
+                    }`}
+                    onClick={() => setAiTab(tab)}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <AiPanel tab={aiTab} analysis={latestAnalysis} onAnalyze={() => navigate("/analysis")} />
+            </>
+          ) : (
+            <NoAnalysis onAnalyze={() => navigate("/analysis")} />
+          )}
         </div>
       </section>
 
@@ -246,26 +256,74 @@ export function Dashboard() {
   );
 }
 
-function AiPanel({ tab }: { tab: (typeof aiTabs)[number] }) {
+function NoAnalysis({ onAnalyze }: { onAnalyze: () => void }) {
+  return (
+    <div className="rounded-lg border border-dashed border-ai/40 bg-ai/10 p-5">
+      <p className="text-sm font-semibold text-ai">No AI analysis yet</p>
+      <h3 className="mt-2 text-xl font-semibold">Analyze your chart and trade levels first.</h3>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+        Add a chart screenshot with entry, stop loss, take profit, lot size, and direction. The result will appear here and on the AI Analysis screen.
+      </p>
+      <button className="primary-button mt-5" onClick={onAnalyze}>
+        Analyze Trade
+      </button>
+    </div>
+  );
+}
+
+function AiPanel({
+  tab,
+  analysis,
+  onAnalyze
+}: {
+  tab: (typeof aiTabs)[number];
+  analysis: StoredAnalysis;
+  onAnalyze: () => void;
+}) {
+  const confidence = Math.min(100, Math.max(0, analysis.confidence ?? analysis.score * 10));
+
   if (tab === "Levels") {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Metric title="Entry" value={aiInsight.entry} />
-        <Metric title="Stop Loss" value={aiInsight.stopLoss} tone="loss" />
-        <Metric title="Take Profit" value={aiInsight.target} tone="profit" />
-        <Metric title="Risk" value={aiInsight.risk} />
-        <Metric title="Support" value={aiInsight.support} />
-        <Metric title="Resistance" value={aiInsight.resistance} />
-      </div>
+      <>
+        <div className="mb-3 flex justify-end">
+          <button className="rounded-md border border-ai/30 px-3 py-2 text-xs font-semibold text-ai transition hover:bg-ai/10" onClick={onAnalyze}>
+            New Analysis
+          </button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Metric title="Entry" value={analysis.entry} />
+          <Metric title="Stop Loss" value={analysis.stopLoss} tone="loss" />
+          <Metric title="Take Profit" value={analysis.target} tone="profit" />
+          <Metric title="Risk" value={analysis.risk} />
+          <Metric title="Support" value={analysis.support || "Not detected"} />
+          <Metric title="Resistance" value={analysis.resistance || "Not detected"} />
+        </div>
+      </>
     );
   }
 
   if (tab === "Advice") {
+    const suggestions = analysis.suggestions?.length ? analysis.suggestions : [analysis.advice];
+    const warnings = analysis.warnings?.length ? analysis.warnings : [];
+    const mistakes = analysis.mistakes?.length ? analysis.mistakes : [];
+
     return (
       <div className="space-y-3">
-        <Advice icon={Zap} title="Suggestion" text="Wait for confirmation after breakout retest before entering." />
-        <Advice icon={ShieldAlert} title="Warning" text="Avoid early entry near resistance. Keep stop loss below invalidation." tone="loss" />
-        <Advice icon={CandlestickChart} title="Context" text={aiInsight.advice} />
+        <div className="flex justify-end">
+          <button className="rounded-md border border-ai/30 px-3 py-2 text-xs font-semibold text-ai transition hover:bg-ai/10" onClick={onAnalyze}>
+            New Analysis
+          </button>
+        </div>
+        {analysis.validationSummary && <Advice icon={CandlestickChart} title="Backend Review" text={analysis.validationSummary} />}
+        {suggestions.map((item) => (
+          <Advice key={`suggestion-${item}`} icon={Zap} title="Suggestion" text={item} />
+        ))}
+        {mistakes.map((item) => (
+          <Advice key={`mistake-${item}`} icon={CandlestickChart} title="Mistake" text={item} />
+        ))}
+        {warnings.map((item) => (
+          <Advice key={`warning-${item}`} icon={ShieldAlert} title="Warning" text={item} tone="loss" />
+        ))}
       </div>
     );
   }
@@ -273,17 +331,24 @@ function AiPanel({ tab }: { tab: (typeof aiTabs)[number] }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Metric title="Trend" value={aiInsight.trend} tone="profit" />
-        <Metric title="Pattern" value={aiInsight.pattern} />
+        <Metric title="Pair" value={analysis.pair ?? "Chart"} />
+        <Metric title="Direction" value={analysis.direction ?? "Trade"} tone={analysis.direction === "BUY" ? "profit" : "loss"} />
+        <Metric title="Trend" value={analysis.trend || "Not detected"} tone={analysis.trend.toLowerCase().includes("bull") ? "profit" : undefined} />
+        <Metric title="Pattern" value={analysis.pattern || "Not detected"} />
       </div>
       <div className="rounded-lg border border-ai/30 bg-ai/10 p-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-400">Confidence score</span>
-          <span className="text-3xl font-bold text-ai">78%</span>
+          <span className="text-3xl font-bold text-ai">{confidence}%</span>
         </div>
         <div className="mt-3 h-2 rounded-full bg-[#0b111a]">
-          <div className="h-full w-[78%] rounded-full bg-ai" />
+          <div className="h-full rounded-full bg-ai" style={{ width: `${confidence}%` }} />
         </div>
+      </div>
+      <div className="flex justify-end">
+        <button className="rounded-md border border-ai/30 px-3 py-2 text-xs font-semibold text-ai transition hover:bg-ai/10" onClick={onAnalyze}>
+          New Analysis
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 # Trade X
 
-Trade X is a dark trading journal dashboard with AI chart-analysis UI, local login/demo mode, trade tracking, performance insights, and chart upload flow.
+Trade X is a professional trading journal and AI chart-analysis platform designed to help traders review performance, analyze trade setups, and improve decision-making with clear dashboard insights.
 
 ## Features
 
@@ -11,7 +11,7 @@ Trade X is a dark trading journal dashboard with AI chart-analysis UI, local log
 - Trade history with filters
 - AI chart analyzer interface with Summary, Trade Plan, and Insights tabs
 - Strategy and psychology tracking pages
-- Local browser-based data storage, no database required
+- Backend-powered trade plan validation for AI chart analysis
 - Black and gold theme matched to the Trade X logo
 
 ## Tech Stack
@@ -21,7 +21,7 @@ Trade X is a dark trading journal dashboard with AI chart-analysis UI, local log
 - TypeScript
 - Tailwind CSS
 - React Router
-- Node.js and Express backend scaffold
+- Node.js and Express backend
 
 ## Run Locally
 
@@ -43,7 +43,7 @@ Open:
 http://127.0.0.1:5173
 ```
 
-Optional backend:
+Start the backend:
 
 ```bash
 npm run dev --workspace backend
@@ -65,8 +65,8 @@ backend/
     middleware/
 ```
 
-## Notes
+## Project Summary
 
-- The app works without a database.
-- User sessions and trades are kept in the browser for this version.
-- Environment files such as `.env` are ignored and should not be committed.
+Trade X combines trade journaling, performance tracking, and AI-assisted chart review in a modern dashboard experience. It is built for traders who want a simple way to record trades, evaluate risk/reward, review trade quality, and turn chart screenshots into structured analysis.
+
+Environment files such as `.env` are ignored and should not be committed.
