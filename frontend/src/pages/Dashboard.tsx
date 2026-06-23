@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Activity, BadgeDollarSign, Brain, CandlestickChart, Percent, Scale, ShieldAlert, Zap } from "lucide-react";
 import { StatCard } from "../components/StatCard";
-import { aiInsight, equityCurve, monthlyPerformance, winLoss } from "../data/sampleData";
+import { aiInsight, equityCurve, monthlyPerformance } from "../data/sampleData";
 import { getSession, getTrades } from "../lib/storage";
 
 const aiTabs = ["Summary", "Levels", "Advice"] as const;
@@ -105,7 +105,13 @@ export function Dashboard() {
               ))}
             </div>
           </div>
-          {loading ? <div className="skeleton h-72 w-full" /> : <EquityChart range={timeFilter} />}
+          {loading ? (
+            <div className="skeleton h-72 w-full" />
+          ) : trades.length === 0 ? (
+            <EmptyPanel title="No equity curve yet" text="Add your first trade to build the chart." />
+          ) : (
+            <EquityChart range={timeFilter} />
+          )}
         </div>
 
         <div className="panel p-5 hover:border-ai/30">
@@ -138,16 +144,30 @@ export function Dashboard() {
       <section className="grid gap-6 xl:grid-cols-2">
         <div className="panel p-5 hover:border-ai/30">
           <InsightHeader title="Win/Loss Ratio" text="Losses increase on Fridays. Reduce late-week revenge trades." />
-          {loading ? <div className="skeleton h-60 w-full" /> : <DonutChart />}
-          <div className="flex justify-center gap-5 text-sm">
-            <span className="text-profit">Wins: 90</span>
-            <span className="text-loss">Losses: 60</span>
-          </div>
+          {loading ? (
+            <div className="skeleton h-60 w-full" />
+          ) : trades.length === 0 ? (
+            <EmptyPanel title="No win/loss data" text="Win and loss ratio appears after saved trades." compact />
+          ) : (
+            <>
+              <DonutChart wins={wins} losses={losses} />
+              <div className="flex justify-center gap-5 text-sm">
+                <span className="text-profit">Wins: {wins}</span>
+                <span className="text-loss">Losses: {losses}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="panel p-5 hover:border-ai/30">
           <InsightHeader title="Monthly Performance" text="Most profitable month: March. Best quality came from confirmed breakouts." />
-          {loading ? <div className="skeleton mt-4 h-60 w-full" /> : <MonthlyBars />}
+          {loading ? (
+            <div className="skeleton mt-4 h-60 w-full" />
+          ) : trades.length === 0 ? (
+            <EmptyPanel title="No monthly data" text="Monthly performance appears after saved trades." compact />
+          ) : (
+            <MonthlyBars />
+          )}
         </div>
       </section>
 
@@ -225,6 +245,13 @@ export function Dashboard() {
                   )}
                 </Fragment>
               ))}
+              {filteredTrades.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
+                    No trades yet. Add a trade to see history here.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -330,9 +357,8 @@ function EquityChart({ range }: { range: string }) {
   );
 }
 
-function DonutChart() {
-  const total = winLoss.reduce((sum, item) => sum + item.value, 0);
-  const wins = winLoss.find((item) => item.name === "Wins")?.value ?? 0;
+function DonutChart({ wins, losses }: { wins: number; losses: number }) {
+  const total = Math.max(1, wins + losses);
   const circumference = 2 * Math.PI * 44;
   const winDash = (wins / total) * circumference;
 
@@ -345,7 +371,7 @@ function DonutChart() {
         </svg>
         <div className="absolute inset-0 grid place-items-center text-center">
           <div>
-            <p className="text-2xl font-bold">64%</p>
+            <p className="text-2xl font-bold">{Math.round((wins / total) * 100)}%</p>
             <p className="text-xs text-slate-500">Win rate</p>
           </div>
         </div>
@@ -370,6 +396,17 @@ function MonthlyBars() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function EmptyPanel({ title, text, compact }: { title: string; text: string; compact?: boolean }) {
+  return (
+    <div className={`grid place-items-center rounded-lg border border-dashed border-line bg-[#0b0b0c] p-6 text-center ${compact ? "h-60" : "h-72"}`}>
+      <div>
+        <p className="font-semibold text-slate-300">{title}</p>
+        <p className="mt-2 text-sm text-slate-500">{text}</p>
+      </div>
     </div>
   );
 }

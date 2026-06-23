@@ -1,4 +1,4 @@
-import { trades as demoTrades, type Trade } from "../data/sampleData";
+import type { Trade } from "../data/sampleData";
 
 export type LocalSession = {
   mode: "demo" | "account";
@@ -29,6 +29,7 @@ export function clearSession() {
 
 export function createDemoSession(): LocalSession {
   const session: LocalSession = { mode: "demo", name: "Demo Trader", email: "demo@local" };
+  localStorage.setItem("tradex_demo_trades", JSON.stringify([]));
   saveSession(session);
   return session;
 }
@@ -67,12 +68,7 @@ export function loginLocalUser(email: string, password: string): LocalSession {
 export function getTrades(session: LocalSession | null): Trade[] {
   if (!session) return [];
 
-  const stored = readJson<Trade[]>(tradeKey(session), []);
-  if (session.mode === "demo" && stored.length === 0) {
-    return demoTrades;
-  }
-
-  return stored;
+  return readJson<Trade[]>(tradeKey(session), []);
 }
 
 export function saveTrade(session: LocalSession, trade: Trade) {
