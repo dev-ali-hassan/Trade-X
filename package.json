@@ -1,0 +1,18 @@
+{
+  "name": "trade-x",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Trade X trading journal and AI chart analyzer",
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "build": "npm run build --workspace frontend && npm run build --workspace backend",
+    "lint": "npm run lint --workspace frontend",
+    "start": "npm run start --workspace backend"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
