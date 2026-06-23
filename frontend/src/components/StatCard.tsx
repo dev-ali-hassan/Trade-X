@@ -65,6 +65,14 @@ export function StatCard({
 function Sparkline({ data, tone }: { data: number[]; tone: StatCardProps["tone"] }) {
   const width = 180;
   const height = 36;
+  if (data.length < 2) {
+    return (
+      <div className="mt-4 hidden h-9 w-full max-w-[220px] items-center sm:flex">
+        <div className="h-px w-full rounded-full bg-line" />
+      </div>
+    );
+  }
+
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = Math.max(1, max - min);

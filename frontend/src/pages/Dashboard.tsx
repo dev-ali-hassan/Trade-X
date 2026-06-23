@@ -1,23 +1,46 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Activity, BadgeDollarSign, Brain, CandlestickChart, Percent, Scale, ShieldAlert, Zap } from "lucide-react";
 import { StatCard } from "../components/StatCard";
-import { aiInsight, equityCurve, monthlyPerformance } from "../data/sampleData";
+import { aiInsight, monthlyPerformance } from "../data/sampleData";
 import { getSession, getTrades } from "../lib/storage";
 
 const aiTabs = ["Summary", "Levels", "Advice"] as const;
 const tradeFilters = ["All", "Wins", "Losses"] as const;
-const timeFilters = ["7D", "30D", "90D"] as const;
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [aiTab, setAiTab] = useState<(typeof aiTabs)[number]>("Summary");
   const [tradeFilter, setTradeFilter] = useState<(typeof tradeFilters)[number]>("All");
-  const [timeFilter, setTimeFilter] = useState<(typeof timeFilters)[number]>("7D");
   const [expandedTrade, setExpandedTrade] = useState<number | null>(null);
   const trades = getTrades(getSession());
   const wins = trades.filter((trade) => trade.result === "Win").length;
   const losses = trades.filter((trade) => trade.result === "Loss").length;
   const netProfit = trades.reduce((sum, trade) => sum + trade.profit, 0);
+  const profitSeries = trades
+    .slice()
+    .reverse()
+    .reduce<number[]>((series, trade) => {
+      const previous = series.at(-1) ?? 0;
+      series.push(previous + trade.profit);
+      return series;
+    }, []);
+  const countSeries = trades.length ? trades.map((_, index) => index + 1) : [];
+  const winRateSeries = trades.length
+    ? trades
+        .slice()
+        .reverse()
+        .reduce<number[]>((series, trade, index, allTrades) => {
+          const winsSoFar = allTrades.slice(0, index + 1).filter((item) => item.result === "Win").length;
+          series.push(Math.round((winsSoFar / (index + 1)) * 100));
+          return series;
+        }, [])
+    : [];
+  const rrSeries = trades.length
+    ? trades
+        .slice()
+        .reverse()
+        .map((trade) => Number(trade.riskReward.split(":")[1] ?? 0))
+    : [];
   const avgRiskReward =
     trades.length === 0
       ? 0
@@ -31,7 +54,7 @@ export function Dashboard() {
       tone: "ai" as const,
       trend: trades.length > 0 ? "+active" : "0%",
       trendDirection: "up" as const,
-      sparkline: [12, 18, 15, 22, 28, 26, Math.max(30, trades.length + 24)]
+      sparkline: countSeries
     },
     {
       label: "Win Rate",
@@ -41,7 +64,7 @@ export function Dashboard() {
       tone: "profit" as const,
       trend: wins >= losses ? "+stable" : "-review",
       trendDirection: wins >= losses ? "up" as const : "down" as const,
-      sparkline: [52, 56, 54, 59, 61, 60, trades.length ? Math.round((wins / trades.length) * 100) : 50]
+      sparkline: winRateSeries
     },
     {
       label: "Net Profit",
@@ -51,7 +74,7 @@ export function Dashboard() {
       tone: netProfit >= 0 ? "profit" as const : "loss" as const,
       trend: netProfit >= 0 ? "+profit" : "-loss",
       trendDirection: netProfit >= 0 ? "up" as const : "down" as const,
-      sparkline: [1, 2, 1.6, 3.2, 3.9, 3.6, Math.max(1, Math.abs(netProfit / 1000))]
+      sparkline: profitSeries
     },
     {
       label: "Avg Risk Reward",
@@ -61,7 +84,7 @@ export function Dashboard() {
       tone: "neutral" as const,
       trend: avgRiskReward >= 2 ? "+quality" : "-low",
       trendDirection: avgRiskReward >= 2 ? "up" as const : "down" as const,
-      sparkline: [2.8, 2.5, 2.7, 2.4, 2.6, 2.5, avgRiskReward || 1]
+      sparkline: rrSeries
     }
   ];
 
@@ -84,36 +107,7 @@ export function Dashboard() {
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
-        <div className="panel p-5 hover:border-ai/30">
-          <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="text-lg font-semibold">Equity Curve</h2>
-              <p className="text-sm text-slate-500">Main account trend and drawdown visibility.</p>
-            </div>
-            <div className="flex rounded-lg border border-line bg-[#0b111a] p-1">
-              {timeFilters.map((filter) => (
-                <button
-                  key={filter}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
-                    timeFilter === filter ? "bg-ai text-white" : "text-slate-500 hover:text-slate-200"
-                  }`}
-                  onClick={() => setTimeFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </div>
-          {loading ? (
-            <div className="skeleton h-72 w-full" />
-          ) : trades.length === 0 ? (
-            <EmptyPanel title="No equity curve yet" text="Add your first trade to build the chart." />
-          ) : (
-            <EquityChart range={timeFilter} />
-          )}
-        </div>
-
+      <section>
         <div className="panel p-5 hover:border-ai/30">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
@@ -146,8 +140,6 @@ export function Dashboard() {
           <InsightHeader title="Win/Loss Ratio" text="Losses increase on Fridays. Reduce late-week revenge trades." />
           {loading ? (
             <div className="skeleton h-60 w-full" />
-          ) : trades.length === 0 ? (
-            <EmptyPanel title="No win/loss data" text="Win and loss ratio appears after saved trades." compact />
           ) : (
             <>
               <DonutChart wins={wins} losses={losses} />
@@ -161,13 +153,7 @@ export function Dashboard() {
 
         <div className="panel p-5 hover:border-ai/30">
           <InsightHeader title="Monthly Performance" text="Most profitable month: March. Best quality came from confirmed breakouts." />
-          {loading ? (
-            <div className="skeleton mt-4 h-60 w-full" />
-          ) : trades.length === 0 ? (
-            <EmptyPanel title="No monthly data" text="Monthly performance appears after saved trades." compact />
-          ) : (
-            <MonthlyBars />
-          )}
+          {loading ? <div className="skeleton mt-4 h-60 w-full" /> : <MonthlyBars trades={trades} />}
         </div>
       </section>
 
@@ -303,62 +289,9 @@ function AiPanel({ tab }: { tab: (typeof aiTabs)[number] }) {
   );
 }
 
-function EquityChart({ range }: { range: string }) {
-  const multiplier = range === "7D" ? 1 : range === "30D" ? 1.18 : 1.36;
-  const data = equityCurve.map((item, index) => ({ ...item, balance: Math.round(item.balance * multiplier + index * 90) }));
-  const values = data.map((item) => item.balance);
-  const min = Math.min(...values) - 600;
-  const max = Math.max(...values) + 600;
-  const width = 760;
-  const height = 280;
-  const left = 54;
-  const right = 18;
-  const top = 18;
-  const bottom = 38;
-  const chartWidth = width - left - right;
-  const chartHeight = height - top - bottom;
-  const points = data.map((item, index) => {
-    const x = left + (index / (data.length - 1)) * chartWidth;
-    const y = top + (1 - (item.balance - min) / (max - min)) * chartHeight;
-    return { ...item, x, y };
-  });
-  const line = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const area = `${left},${top + chartHeight} ${line} ${left + chartWidth},${top + chartHeight}`;
-
-  return (
-    <div className="overflow-x-auto">
-      <svg className="h-72 w-full sm:min-w-[640px]" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Equity curve chart">
-        <defs>
-          <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0, 0.25, 0.5, 0.75, 1].map((step) => {
-          const y = top + step * chartHeight;
-          const value = Math.round(max - step * (max - min));
-          return (
-            <g key={step}>
-              <line x1={left} x2={left + chartWidth} y1={y} y2={y} stroke="#263241" strokeDasharray="4 5" />
-              <text x={8} y={y + 4} fill="#7f95b2" fontSize="12">{value}</text>
-            </g>
-          );
-        })}
-        {points.map((point) => (
-          <text key={point.day} x={point.x} y={height - 10} fill="#7f95b2" fontSize="12" textAnchor="middle">{point.day}</text>
-        ))}
-        <polygon points={area} fill="url(#equityFill)" />
-        <polyline points={line} fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-        {points.map((point) => (
-          <circle key={`${point.day}-dot`} cx={point.x} cy={point.y} r="4" fill="#22c55e" stroke="#0b0f14" strokeWidth="2" />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
 function DonutChart({ wins, losses }: { wins: number; losses: number }) {
-  const total = Math.max(1, wins + losses);
+  const realTotal = wins + losses;
+  const total = Math.max(1, realTotal);
   const circumference = 2 * Math.PI * 44;
   const winDash = (wins / total) * circumference;
 
@@ -366,12 +299,14 @@ function DonutChart({ wins, losses }: { wins: number; losses: number }) {
     <div className="grid h-56 place-items-center">
       <div className="relative h-44 w-44">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-label="Win loss chart">
-          <circle cx="60" cy="60" r="44" fill="none" stroke="#ef4444" strokeWidth="18" />
-          <circle cx="60" cy="60" r="44" fill="none" stroke="#22c55e" strokeDasharray={`${winDash} ${circumference - winDash}`} strokeLinecap="round" strokeWidth="18" />
+          <circle cx="60" cy="60" r="44" fill="none" stroke={realTotal === 0 ? "#2b2618" : "#ef4444"} strokeWidth="18" />
+          {realTotal > 0 && (
+            <circle cx="60" cy="60" r="44" fill="none" stroke="#22c55e" strokeDasharray={`${winDash} ${circumference - winDash}`} strokeLinecap="round" strokeWidth="18" />
+          )}
         </svg>
         <div className="absolute inset-0 grid place-items-center text-center">
           <div>
-            <p className="text-2xl font-bold">{Math.round((wins / total) * 100)}%</p>
+            <p className="text-2xl font-bold">{realTotal === 0 ? "0%" : `${Math.round((wins / total) * 100)}%`}</p>
             <p className="text-xs text-slate-500">Win rate</p>
           </div>
         </div>
@@ -380,33 +315,36 @@ function DonutChart({ wins, losses }: { wins: number; losses: number }) {
   );
 }
 
-function MonthlyBars() {
-  const max = Math.max(...monthlyPerformance.map((item) => Math.abs(item.profit)));
+function MonthlyBars({ trades }: { trades: Array<{ date: string; profit: number }> }) {
+  const monthlyData = monthlyPerformance.map((item) => ({ ...item, profit: 0 }));
+  trades.forEach((trade) => {
+    const monthIndex = new Date(trade.date).getMonth();
+    const month = monthlyData[monthIndex];
+    if (month) {
+      month.profit += trade.profit;
+    }
+  });
+  const max = Math.max(1, ...monthlyData.map((item) => Math.abs(item.profit)));
 
   return (
     <div className="flex h-60 items-end gap-4 overflow-x-auto px-2 pb-8 pt-6">
-      {monthlyPerformance.map((item) => {
-        const height = Math.max(18, (Math.abs(item.profit) / max) * 170);
+      {monthlyData.map((item) => {
+        const height = item.profit === 0 ? 4 : Math.max(18, (Math.abs(item.profit) / max) * 170);
         return (
           <div key={item.month} className="flex min-w-12 flex-1 flex-col items-center gap-2">
             <div className="flex h-44 items-end">
-              <div className={`w-9 rounded-t-md transition hover:opacity-80 ${item.profit >= 0 ? "bg-ai" : "bg-loss"}`} style={{ height }} title={`${item.month}: ${item.profit}`} />
+              <div
+                className={`w-9 rounded-t-md transition hover:opacity-80 ${
+                  item.profit === 0 ? "bg-line" : item.profit >= 0 ? "bg-ai" : "bg-loss"
+                }`}
+                style={{ height }}
+                title={`${item.month}: ${item.profit}`}
+              />
             </div>
             <span className="text-xs text-slate-500">{item.month}</span>
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function EmptyPanel({ title, text, compact }: { title: string; text: string; compact?: boolean }) {
-  return (
-    <div className={`grid place-items-center rounded-lg border border-dashed border-line bg-[#0b0b0c] p-6 text-center ${compact ? "h-60" : "h-72"}`}>
-      <div>
-        <p className="font-semibold text-slate-300">{title}</p>
-        <p className="mt-2 text-sm text-slate-500">{text}</p>
-      </div>
     </div>
   );
 }
