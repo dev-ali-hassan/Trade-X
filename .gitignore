@@ -2,8 +2,7 @@
 node_modules/
 
 # Build outputs
-dist/
-frontend/dist/
+/dist/
 backend/dist/
 *.tsbuildinfo
 frontend/vite.config.js
