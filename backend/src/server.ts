@@ -8,7 +8,7 @@ import tradeRoutes from "./routes/trades.js";
 import analysisRoutes from "./routes/analysis.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const workspaceRoot = path.resolve(__dirname, "..", "..", "..");
+const workspaceRoot = path.resolve(__dirname, "..", "..");
 
 dotenv.config({ path: path.join(workspaceRoot, ".env") });
 dotenv.config({ path: path.join(workspaceRoot, "backend", ".env"), override: true });

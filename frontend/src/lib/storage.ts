@@ -7,17 +7,45 @@ export type LocalSession = {
 };
 
 export type StoredAnalysis = {
-  trend: string;
-  pattern: string;
-  candlestick: string;
-  support: string;
-  resistance: string;
-  entry: string;
-  stopLoss: string;
-  target: string;
-  score: number;
-  risk: string;
-  advice: string;
+  id?: string;
+  asset?: string;
+  timeframe?: string;
+  tradingStyle?: string;
+  marketStructure?: string;
+  entry?: {
+    zone: string;
+    reason: string;
+  } | string;
+  risk?: {
+    stopLoss: string;
+    riskReward: string;
+    invalidation: string;
+  } | string;
+  indicators?: {
+    ema?: string;
+    rsi?: string;
+    macd?: string;
+    volume?: string;
+    atr?: string;
+  };
+  targets?: Array<{
+    name: string;
+    price: string;
+    reason: string;
+  }> | string[];
+  risks?: string[];
+  alternativeScenario?: string;
+  reasoning?: string;
+  trend?: string;
+  pattern?: string;
+  candlestick?: string;
+  support?: string;
+  resistance?: string;
+  entryZone?: string;
+  stopLoss?: string;
+  target?: string;
+  score?: number;
+  advice?: string;
   confidence?: number;
   riskReward?: string;
   profitLoss?: number;
@@ -28,6 +56,10 @@ export type StoredAnalysis = {
   mistakes?: string[];
   pair?: string;
   direction?: string;
+  structure?: string;
+  strategy?: string;
+  chartImage?: string;
+  savedToJournal?: boolean;
   createdAt: string;
 };
 
@@ -113,6 +145,51 @@ export function saveLatestAnalysis(session: LocalSession, analysis: StoredAnalys
   localStorage.setItem(analysisKey(session), JSON.stringify(analysis));
 }
 
+export function getAnalysisHistory(session: LocalSession | null): StoredAnalysis[] {
+  if (!session) return [];
+
+  return readJson<StoredAnalysis[]>(analysisHistoryKey(session), []);
+}
+
+export function saveAnalysisHistory(session: LocalSession, analysis: StoredAnalysis) {
+  const current = getAnalysisHistory(session);
+  const nextAnalysis = { ...analysis, id: analysis.id ?? String(Date.now()) };
+  const next = [nextAnalysis, ...current.filter((item) => item.id !== nextAnalysis.id)].slice(0, 25);
+  localStorage.setItem(analysisHistoryKey(session), JSON.stringify(next));
+}
+
+export function saveAnalysisToJournal(session: LocalSession, analysis: StoredAnalysis) {
+  const entryZone = typeof analysis.entry === "object" ? analysis.entry.zone : analysis.entry ?? analysis.entryZone;
+  const riskPlan = typeof analysis.risk === "object" ? analysis.risk : null;
+  const firstTarget = Array.isArray(analysis.targets) ? analysis.targets[0] : null;
+  const targetPrice = firstTarget && typeof firstTarget === "object" ? firstTarget.price : firstTarget ?? analysis.target;
+  const entry = Number(entryZone);
+  const stopLoss = Number(riskPlan?.stopLoss ?? analysis.stopLoss);
+  const takeProfit = Number(targetPrice);
+  const profit = analysis.profitLoss ?? 0;
+  const trade: Trade = {
+    id: Date.now(),
+    date: new Date().toISOString().slice(0, 10),
+    pair: analysis.pair ?? analysis.asset ?? "Chart",
+    type: analysis.direction?.includes("SHORT") || analysis.direction === "SELL" ? "SELL" : "BUY",
+    entry: Number.isFinite(entry) ? entry : 0,
+    exit: Number.isFinite(takeProfit) ? takeProfit : 0,
+    stopLoss: Number.isFinite(stopLoss) ? stopLoss : 0,
+    takeProfit: Number.isFinite(takeProfit) ? takeProfit : 0,
+    lotSize: 1,
+    strategy: analysis.strategy ?? analysis.pattern ?? "AI chart analysis",
+    notes: analysis.reasoning ?? analysis.validationSummary ?? analysis.advice ?? "",
+    result: profit < 0 ? "Loss" : "Win",
+    profit,
+    riskReward: riskPlan?.riskReward ?? analysis.riskReward ?? "1:0.00",
+    emotion: "Confident",
+    aiScore: Math.max(1, Math.min(10, Math.round(analysis.score || (analysis.confidence ?? 50) / 10)))
+  };
+
+  saveTrade(session, trade);
+  saveLatestAnalysis(session, { ...analysis, savedToJournal: true });
+}
+
 function getUsers(): LocalUser[] {
   return readJson<LocalUser[]>(USERS_KEY, []);
 }
@@ -130,6 +207,10 @@ function tradeKey(session: LocalSession) {
 
 function analysisKey(session: LocalSession) {
   return session.mode === "demo" ? "tradex_demo_latest_analysis" : `tradex_latest_analysis_${session.email}`;
+}
+
+function analysisHistoryKey(session: LocalSession) {
+  return session.mode === "demo" ? "tradex_demo_analysis_history" : `tradex_analysis_history_${session.email}`;
 }
 
 function readJson<T>(key: string, fallback: T): T {

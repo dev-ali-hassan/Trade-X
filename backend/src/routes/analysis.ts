@@ -5,36 +5,49 @@ import { supabase } from "../database/supabase.js";
 import { analyzeChart } from "../services/aiService.js";
 
 const router = Router();
+const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 }
 });
 
-const numericString = (label: string) =>
+const optionalNumericString = (label: string) =>
   z
     .string()
     .trim()
-    .min(1, `${label} is required.`)
-    .refine((value) => Number.isFinite(Number(value)), `${label} must be a valid number.`);
+    .optional()
+    .refine((value) => !value || Number.isFinite(Number(value)), `${label} must be a valid number.`);
 
 const tradeContextSchema = z.object({
-  pair: z.string().trim().min(1, "Pair is required."),
-  direction: z.enum(["BUY", "SELL"]),
-  entry: numericString("Entry"),
+  asset: z.string().trim().optional(),
+  pair: z.string().trim().optional(),
+  timeframe: z.string().trim().optional(),
+  tradingStyle: z.string().trim().optional(),
+  riskPercent: optionalNumericString("Risk"),
+  accountBalance: optionalNumericString("Account balance"),
+  direction: z.enum(["BUY", "SELL"]).optional(),
+  entry: optionalNumericString("Entry"),
   exit: z
     .string()
     .trim()
     .optional()
     .refine((value) => !value || Number.isFinite(Number(value)), "Exit must be a valid number."),
-  stopLoss: numericString("Stop loss"),
-  takeProfit: numericString("Take profit"),
-  lotSize: numericString("Lot size"),
-  riskReward: z.string().trim().optional()
+  stopLoss: optionalNumericString("Stop loss"),
+  takeProfit: optionalNumericString("Take profit"),
+  lotSize: optionalNumericString("Lot size"),
+  riskReward: z.string().trim().optional(),
+  strategy: z.string().trim().optional(),
+  notes: z.string().trim().optional()
 });
 
 router.post("/analyze-chart", upload.single("image"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ message: "Please upload a chart image." });
+    return;
+  }
+
+  if (!allowedImageTypes.has(req.file.mimetype)) {
+    res.status(400).json({ message: "Please upload a PNG, JPG, or WEBP chart image." });
     return;
   }
 
@@ -47,25 +60,62 @@ router.post("/analyze-chart", upload.single("image"), async (req, res) => {
     return;
   }
 
-  const result = await analyzeChart({
-    imageBuffer: req.file.buffer,
+  const tradeContext = removeEmptyValues(parsedContext.data);
+
+  console.log("[analysis] Image received", {
     mimeType: req.file.mimetype,
-    tradeContext: parsedContext.data
+    bytes: req.file.size,
+    hasContext: Boolean(tradeContext)
   });
 
-  if (supabase && req.body.trade_id && req.body.trade_id !== "demo-trade") {
-    await supabase.from("ai_analysis").insert({
-      trade_id: req.body.trade_id,
-      trend: result.trend,
-      support: result.support,
-      resistance: result.resistance,
-      pattern: result.pattern,
-      score: result.score,
-      recommendation: result.advice
+  try {
+    const result = await analyzeChart({
+      imageBuffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+      tradeContext
+    });
+
+    if (supabase && req.body.trade_id && req.body.trade_id !== "demo-trade") {
+      await supabase.from("ai_analysis").insert({
+        trade_id: req.body.trade_id,
+        trend: result.marketStructure,
+        support: "",
+        resistance: "",
+        pattern: result.strategy,
+        score: Math.max(1, Math.min(10, Math.round(result.confidence / 10))),
+        recommendation: result.reasoning
+      });
+    }
+
+    console.log("[analysis] JSON response sent", {
+      direction: result.direction,
+      confidence: result.confidence
+    });
+
+    res.json(result);
+  } catch (error) {
+    const message = sanitizeApiError(error instanceof Error ? error.message : String(error));
+    console.error("[analysis] API error", { message });
+    res.status(502).json({
+      message: "AI chart analysis failed.",
+      detail: message
     });
   }
-
-  res.json(result);
 });
+
+function removeEmptyValues<T extends Record<string, unknown>>(input: T) {
+  const cleaned = Object.fromEntries(
+    Object.entries(input).filter(([, value]) => typeof value === "string" ? value.trim().length > 0 : value !== undefined)
+  ) as Partial<T>;
+
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+function sanitizeApiError(message: string) {
+  return message
+    .replace(/[a-z]{2,}[-_][A-Za-z0-9_*]{12,}/g, "[redacted-api-key]")
+    .replace(/AIza[A-Za-z0-9_-]{12,}/g, "[redacted-api-key]")
+    .replace(/gsk_[A-Za-z0-9_-]{12,}/g, "[redacted-api-key]");
+}
 
 export default router;

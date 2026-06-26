@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   Brain,
   ChevronRight,
+  ClipboardCheck,
   History,
   LayoutDashboard,
   LogOut,
@@ -19,8 +20,9 @@ import { Analysis } from "./pages/Analysis";
 import { TradeHistory } from "./pages/TradeHistory";
 import { Strategies } from "./pages/Strategies";
 import { Psychology } from "./pages/Psychology";
+import { TradeRating } from "./pages/TradeRating";
 import { Auth } from "./pages/Auth";
-import { clearSession, getSession, type LocalSession } from "./lib/storage";
+import { clearSession, getSession, getTrades, type LocalSession } from "./lib/storage";
 
 const navGroups = [
   {
@@ -33,7 +35,10 @@ const navGroups = [
   },
   {
     title: "AI",
-    items: [{ to: "/analysis", label: "AI Analysis", icon: Brain }]
+    items: [
+      { to: "/ai-analysis", label: "AI Analysis", icon: Brain },
+      { to: "/trade-rating", label: "Trade Rating", icon: ClipboardCheck }
+    ]
   },
   {
     title: "Performance",
@@ -51,6 +56,11 @@ const navGroups = [
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<LocalSession | null>(() => getSession());
+  const trades = session ? getTrades(session) : [];
+  const completedTrades = trades.filter((trade) => trade.profit !== 0);
+  const disciplineScore = completedTrades.length
+    ? Math.round((completedTrades.reduce((sum, trade) => sum + trade.aiScore, 0) / completedTrades.length) * 10)
+    : 0;
 
   if (!session) {
     return <Auth onEnter={setSession} />;
@@ -89,9 +99,9 @@ export default function App() {
               <TrendingUp size={18} />
               <span className="text-sm font-semibold">Discipline Score</span>
             </div>
-            <p className="text-3xl font-bold">82%</p>
+            <p className="text-3xl font-bold">{disciplineScore}%</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Best results come from breakout setups with confirmation.
+              {completedTrades.length === 0 ? "Complete trades to calculate this score." : "Based on completed journal entries."}
             </p>
           </div>
         </aside>
@@ -124,6 +134,8 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/add-trade" element={<AddTrade />} />
               <Route path="/analysis" element={<Analysis />} />
+              <Route path="/ai-analysis" element={<Analysis />} />
+              <Route path="/trade-rating" element={<TradeRating />} />
               <Route path="/history" element={<TradeHistory />} />
               <Route path="/strategies" element={<Strategies />} />
               <Route path="/psychology" element={<Psychology />} />
