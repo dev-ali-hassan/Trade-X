@@ -109,13 +109,13 @@ export function AddTrade() {
       <form className="grid gap-6 xl:grid-cols-[1fr_340px]" onSubmit={submit}>
         <div className="panel grid gap-4 p-5 md:grid-cols-2">
           <Field label="Pair">
-            <select className="field" required value={trade.pair} onChange={(e) => setTrade({ ...trade, pair: e.target.value })}>
-              <option value="">Select pair</option>
-              <option>XAU/USD</option>
-              <option>EUR/USD</option>
-              <option>BTC/USD</option>
-              <option>GBP/USD</option>
-            </select>
+            <input
+              className="field"
+              required
+              value={trade.pair}
+              placeholder="Write pair name, e.g. XAU/USD"
+              onChange={(e) => setTrade({ ...trade, pair: e.target.value.toUpperCase() })}
+            />
           </Field>
           <Field label="Trade Type">
             <select className="field" required value={trade.type} onChange={(e) => setTrade({ ...trade, type: e.target.value })}>
