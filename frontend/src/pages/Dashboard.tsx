@@ -2,8 +2,11 @@ import { useNavigate } from "react-router-dom";
 import {
   Activity,
   BadgeDollarSign,
+  CalendarDays,
   CheckCircle2,
+  Info,
   LineChart,
+  PieChart,
   PlusCircle,
   ShieldCheck,
   Sparkles,
@@ -101,31 +104,21 @@ function WinLossChart({ trades }: { trades: Trade[] }) {
   const safeTotal = Math.max(1, total);
   const circumference = 2 * Math.PI * 44;
   const winDash = (wins / safeTotal) * circumference;
+  const winRate = total ? Math.round((wins / total) * 100) : 0;
+  const lossRate = total ? 100 - winRate : 0;
 
   return (
-    <section className="panel p-5 md:p-6">
-      <SectionHeader title="Win/Loss Analysis" text={hasEnoughData ? "Based on completed journal results." : "Complete 5 trades to analyze your win/loss data."} />
-      {!hasEnoughData ? (
-        <div className="grid h-64 place-items-center text-center">
-          <div className="max-w-md">
-            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-ai/35 bg-ai/10 text-ai">
-              {Math.min(total, minimumTrades)}/{minimumTrades}
-            </div>
-            <h3 className="mt-5 text-xl font-semibold">Complete 5 trades to analyze your data</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Trade-X needs a few completed trades before showing reliable win/loss analysis.
-            </p>
-            <div className="mt-5 h-2 rounded-full bg-[#0b0b0c]">
-              <div className="h-full rounded-full bg-ai transition-all" style={{ width: `${Math.min(100, (total / minimumTrades) * 100)}%` }} />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="grid h-64 place-items-center">
-            <div className="relative h-52 w-52">
-              <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-label="Win loss chart">
-                <circle cx="60" cy="60" r="44" fill="none" stroke="#ef4444" strokeWidth="18" />
+    <section className="panel p-4 md:p-5">
+      <div className="flex items-center gap-2">
+        <PieChart size={16} className="text-ai" />
+        <h2 className="text-lg font-semibold">Win/Loss Analysis</h2>
+      </div>
+      <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
+        <div className="text-center">
+          <div className="relative mx-auto h-40 w-40">
+            <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-label="Win loss chart">
+              <circle cx="60" cy="60" r="44" fill="none" stroke={hasEnoughData ? "#ef4444" : "#302816"} strokeWidth="18" />
+              {hasEnoughData && (
                 <circle
                   cx="60"
                   cy="60"
@@ -136,21 +129,38 @@ function WinLossChart({ trades }: { trades: Trade[] }) {
                   strokeLinecap="round"
                   strokeWidth="18"
                 />
-              </svg>
-              <div className="absolute inset-0 grid place-items-center text-center">
-                <div>
-                  <p className="text-4xl font-bold">{`${Math.round((wins / safeTotal) * 100)}%`}</p>
-                  <p className="text-sm text-slate-500">Win rate</p>
-                </div>
+              )}
+            </svg>
+            <div className="absolute inset-0 grid place-items-center text-center">
+              <div>
+                <p className="text-3xl font-bold">{hasEnoughData ? `${winRate}%` : "?"}</p>
+                <p className="text-xs text-slate-500">{hasEnoughData ? "Win rate" : "Need 5 trades"}</p>
               </div>
             </div>
           </div>
-          <div className="flex justify-center gap-6 text-base">
-            <span className="text-profit">Wins: {wins}</span>
-            <span className="text-loss">Losses: {losses}</span>
+          {!hasEnoughData && (
+            <p className="mx-auto mt-3 max-w-56 text-xs leading-5 text-slate-500">
+              Complete 5 trades to analyze your data. Progress: {Math.min(total, minimumTrades)}/{minimumTrades}
+            </p>
+          )}
+        </div>
+        <div className="space-y-4">
+          <LegendRow label="Wins" value={`${wins} (${winRate}%)`} color="bg-profit" />
+          <LegendRow label="Losses" value={`${losses} (${lossRate}%)`} color="bg-loss" />
+          <div className="border-t border-line/80 pt-4">
+            <p className="text-sm text-slate-400">
+              {total
+                ? `Based on ${total} completed ${pluralize(total, "trade")}`
+                : "No completed trades yet"}
+            </p>
+            {!hasEnoughData && (
+              <div className="mt-3 h-2 rounded-full bg-[#0b0b0c]">
+                <div className="h-full rounded-full bg-ai transition-all" style={{ width: `${Math.min(100, (total / minimumTrades) * 100)}%` }} />
+              </div>
+            )}
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -170,37 +180,64 @@ function MonthlyPerformance({ trades }: { trades: Trade[] }) {
   const max = Math.max(1, ...months.map((item) => Math.abs(item.profit)));
 
   return (
-    <section className="panel p-5 md:p-6">
-      <SectionHeader title="Monthly Performance" text={trades.length ? "Profit by saved trade date." : "No monthly results yet."} />
-      {trades.length > 0 && (
-        <div className="mt-4 rounded-lg border border-line bg-panelSoft p-4">
-          <p className="text-sm text-slate-500">Monthly Performance</p>
-          <p className={`mt-2 text-2xl font-bold ${totalProfit < 0 ? "text-loss" : totalProfit > 0 ? "text-profit" : ""}`}>
+    <section className="panel p-4 md:p-5">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={16} className="text-ai" />
+          <h2 className="text-lg font-semibold">Monthly Performance</h2>
+        </div>
+        <button className="rounded-md border border-line px-3 py-1.5 text-xs text-slate-300">This Year</button>
+      </div>
+      <div className="mt-5 grid gap-5 md:grid-cols-[150px_1fr] md:items-end">
+        <div>
+          <p className="text-xs text-slate-500">Total P/L</p>
+          <p className={`mt-1 text-2xl font-bold ${totalProfit < 0 ? "text-loss" : totalProfit > 0 ? "text-profit" : ""}`}>
             {formatMoney(totalProfit)}
           </p>
-          <p className="mt-1 text-sm text-slate-500">Based on your completed trades</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            {trades.length ? `Based on ${trades.length} completed ${pluralize(trades.length, "trade")}` : "Based on your completed trades"}
+          </p>
         </div>
-      )}
-      <div className="flex h-64 items-end gap-4 overflow-x-auto px-2 pb-7 pt-7">
-        {months.map((item) => {
-          const height = item.profit === 0 ? 5 : Math.max(16, (Math.abs(item.profit) / max) * 145);
-          return (
-            <div key={item.month} className="flex min-w-12 flex-1 flex-col items-center gap-3">
-              <div className="flex h-44 items-end">
-                <div
-                  className={`w-9 rounded-t-md transition hover:opacity-80 ${
-                    item.profit === 0 ? "bg-line" : item.profit >= 0 ? "bg-ai" : "bg-loss"
-                  }`}
-                  style={{ height }}
-                  title={`${item.month}: ${item.profit}`}
-                />
-              </div>
-              <span className="text-sm text-slate-500">{item.month}</span>
-            </div>
-          );
-        })}
+        <div className="relative min-h-48 overflow-hidden">
+          <div className="absolute left-0 right-0 top-8 border-t border-dashed border-slate-500/60" />
+          <div className="flex h-44 items-end gap-3 px-1 pb-6 pt-6">
+            {months.map((item) => {
+              const height = item.profit === 0 ? 4 : Math.max(18, (Math.abs(item.profit) / max) * 112);
+              return (
+                <div key={item.month} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="flex h-32 items-end">
+                    <div
+                      className={`w-6 rounded-t-sm transition hover:opacity-80 ${
+                        item.profit === 0 ? "bg-line/70" : item.profit >= 0 ? "bg-ai" : "bg-loss"
+                      }`}
+                      style={{ height }}
+                      title={`${item.month}: ${formatMoney(item.profit)}`}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">{item.month}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2 border-t border-line/80 pt-3 text-xs text-slate-500">
+        <Info size={14} />
+        <span>Keep trading to see your monthly performance trend.</span>
       </div>
     </section>
+  );
+}
+
+function LegendRow({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+        <span>{label}</span>
+      </div>
+      <span className="font-semibold text-slate-200">{value}</span>
+    </div>
   );
 }
 
