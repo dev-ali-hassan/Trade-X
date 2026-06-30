@@ -31,9 +31,10 @@ Install dependencies:
 npm install
 ```
 
-Start the frontend:
+Start the full local app for development:
 
 ```bash
+npm run dev --workspace backend
 npm run dev --workspace frontend
 ```
 
@@ -43,11 +44,30 @@ Open:
 http://127.0.0.1:5173
 ```
 
-Start the backend:
+The frontend uses `/api` and proxies requests to the backend during local development.
+
+## Production / One Website URL
+
+Trade X is configured as a full-stack app. After building, the Express backend serves:
+
+- The complete frontend website
+- All API routes under `/api`
+- AI chart analysis from the same domain
+
+Build and start:
 
 ```bash
-npm run dev --workspace backend
+npm run build
+npm start
 ```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+For deployment, use the included `render.yaml` on Render. Add `GROQ_API_KEY` as a secret environment variable in the hosting dashboard.
 
 ## Project Structure
 

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
@@ -27,11 +28,25 @@ app.use("/api/auth", authRoutes);
 app.use("/api/trades", tradeRoutes);
 app.use("/api/analysis", analysisRoutes);
 
+const frontendDist = path.join(workspaceRoot, "frontend", "dist");
+
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) {
+      next();
+      return;
+    }
+
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
+
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.message);
   res.status(500).json({ message: "Something went wrong. Please try again." });
 });
 
 app.listen(port, () => {
-  console.log(`Trade X API running on http://127.0.0.1:${port}`);
+  console.log(`Trade X running on http://127.0.0.1:${port}`);
 });
