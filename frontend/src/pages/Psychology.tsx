@@ -1,4 +1,4 @@
-import { type ChangeEventHandler, useState } from "react";
+import { useState } from "react";
 import {
   BrainCircuit,
   CheckCircle2,
@@ -10,7 +10,12 @@ import {
   Smile,
   Sparkles
 } from "lucide-react";
-import { getSession, getTrades } from "../lib/storage";
+import {
+  getPsychologyEntries,
+  getSession,
+  savePsychologyEntry,
+  type PsychologyEmotion
+} from "../lib/storage";
 
 const moods = [
   { name: "Confident", description: "Following the plan.", icon: Smile, tone: "text-ai" },
@@ -22,12 +27,25 @@ const moods = [
 ] as const;
 
 export function Psychology() {
-  const [mood, setMood] = useState("Confident");
-  const [triggerNote, setTriggerNote] = useState("");
-  const [selfNote, setSelfNote] = useState("");
+  const [mood, setMood] = useState<PsychologyEmotion>("Confident");
   const [saved, setSaved] = useState(false);
-  const trades = getTrades(getSession());
-  const review = getPsychologyReview(trades, mood, triggerNote, selfNote);
+  const session = getSession();
+  const [entries, setEntries] = useState(() => getPsychologyEntries(session));
+  const review = getPsychologyReview(entries, mood);
+
+  function saveEmotion() {
+    if (!session) return;
+
+    savePsychologyEntry(session, {
+      id: Date.now(),
+      emotion: mood,
+      createdAt: new Date().toISOString()
+    });
+
+    setEntries(getPsychologyEntries(session));
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
@@ -87,34 +105,10 @@ export function Psychology() {
             })}
           </div>
 
-          <TextAreaBlock
-            label="2. What triggered this emotion?"
-            optional
-            value={triggerNote}
-            placeholder="Write what triggered this emotion..."
-            maxLength={200}
-            onChange={(event) => {
-              setTriggerNote(event.target.value);
-              setSaved(false);
-            }}
-          />
-
-          <TextAreaBlock
-            label="3. Note to self"
-            optional
-            value={selfNote}
-            placeholder="Write a short note to your future self..."
-            maxLength={200}
-            onChange={(event) => {
-              setSelfNote(event.target.value);
-              setSaved(false);
-            }}
-          />
-
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               className="primary-button min-w-64"
-              onClick={() => setSaved(Boolean(mood || triggerNote.trim() || selfNote.trim()))}
+              onClick={saveEmotion}
             >
               <ShieldCheck size={18} />
               Save Psychology Note
@@ -143,7 +137,7 @@ export function Psychology() {
 
             <div className="mt-5 rounded-lg border-2 border-ai/20 bg-panelSoft p-4">
               <h3 className="text-sm font-semibold">
-                Your Emotion Stats <span className="font-normal text-slate-500">(Based on {trades.length} {trades.length === 1 ? "trade" : "trades"})</span>
+                Your Emotion Stats <span className="font-normal text-slate-500">(Based on {entries.length} saved {entries.length === 1 ? "entry" : "entries"})</span>
               </h3>
               <div className="mt-4 space-y-4">
                 {moods.map((item) => {
@@ -153,7 +147,7 @@ export function Psychology() {
                     <div key={item.name} className="grid grid-cols-[128px_1fr_42px] items-center gap-3 text-sm">
                       <div className="flex min-w-0 items-center gap-2">
                         <Icon size={16} className={item.tone} />
-                        <span className="truncate text-slate-400">{item.name} trades</span>
+                        <span className="truncate text-slate-400">{item.name} entries</span>
                       </div>
                       <div className="h-2 rounded-full bg-[#0b0b0c]">
                         <div className="h-full rounded-full bg-ai transition-all" style={{ width: `${stat}%` }} />
@@ -183,63 +177,26 @@ export function Psychology() {
   );
 }
 
-function TextAreaBlock({
-  label,
-  optional,
-  value,
-  placeholder,
-  maxLength,
-  onChange
-}: {
-  label: string;
-  optional?: boolean;
-  value: string;
-  placeholder: string;
-  maxLength: number;
-  onChange: ChangeEventHandler<HTMLTextAreaElement>;
-}) {
-  return (
-    <div className="mt-5 rounded-lg border border-line bg-panelSoft p-4">
-      <label className="text-base font-semibold">
-        {label} {optional && <span className="text-sm font-normal text-slate-500">(Optional)</span>}
-      </label>
-      <div className="relative mt-3">
-        <textarea
-          className="field min-h-24 resize-none pb-8"
-          maxLength={maxLength}
-          value={value}
-          placeholder={placeholder}
-          onChange={onChange}
-        />
-        <span className="absolute bottom-3 right-3 text-xs text-slate-500">
-          {value.length}/{maxLength}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function getPsychologyReview(trades: ReturnType<typeof getTrades>, selectedMood: string, triggerNote: string, selfNote: string) {
+function getPsychologyReview(entries: ReturnType<typeof getPsychologyEntries>, selectedMood: string) {
+  const total = Math.max(1, entries.length);
   const stats = moods.reduce<Record<string, number>>((result, item) => {
-    const moodTrades = trades.filter((trade) => trade.emotion === item.name);
-    const wins = moodTrades.filter((trade) => trade.result === "Win").length;
-    result[item.name] = moodTrades.length ? Math.round((wins / moodTrades.length) * 100) : 0;
+    const moodEntries = entries.filter((entry) => entry.emotion === item.name);
+    result[item.name] = entries.length ? Math.round((moodEntries.length / total) * 100) : 0;
     return result;
   }, {});
 
   const summary =
-    trades.length === 0
-      ? "Trade-X will calculate psychology patterns after you save trades with emotions."
-      : "Trade-X analyzes your psychology patterns based only on your saved journal.";
+    entries.length === 0
+      ? "Select your current emotion and save it. Trade-X will build your psychology pattern from saved entries."
+      : "Trade-X analyzes your psychology pattern based only on your saved emotion entries.";
 
-  const noteText = `${triggerNote} ${selfNote}`.toLowerCase();
   let insight = "";
 
-  if (noteText.includes("revenge")) {
-    insight = "Your note shows revenge pressure. Step away for a few minutes, reduce risk, and only enter if the setup still matches your written rules.";
-  } else if (noteText.includes("fomo") || noteText.includes("miss") || noteText.includes("late") || selectedMood === "FOMO") {
+  if (selectedMood === "Revenge") {
+    insight = "Revenge pressure can turn one loss into a bigger mistake. Pause, reduce risk, and only continue if the next setup is truly clean.";
+  } else if (selectedMood === "FOMO") {
     insight = "This looks like a FOMO risk. Wait for confirmation instead of chasing price. A missed trade is better than a forced entry.";
-  } else if (noteText.includes("fear") || noteText.includes("nervous") || noteText.includes("scared") || selectedMood === "Fear") {
+  } else if (selectedMood === "Fear") {
     insight = "Fear usually means the trade needs clearer confirmation or smaller risk. Check entry, stop loss, and invalidation before clicking buy or sell.";
   } else if (selectedMood === "Doubtful") {
     insight = "Doubt is a warning signal. If the setup is not obvious, skip the trade or wait until price gives a cleaner confirmation.";

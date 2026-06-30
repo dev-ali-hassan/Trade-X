@@ -63,6 +63,14 @@ export type StoredAnalysis = {
   createdAt: string;
 };
 
+export type PsychologyEmotion = "Confident" | "Fear" | "FOMO" | "Revenge" | "Doubtful" | "Calm / Neutral";
+
+export type PsychologyEntry = {
+  id: number;
+  emotion: PsychologyEmotion;
+  createdAt: string;
+};
+
 type LocalUser = {
   name: string;
   email: string;
@@ -92,6 +100,7 @@ export function createDemoSession(): LocalSession {
   localStorage.setItem("tradex_demo_trades", JSON.stringify([]));
   localStorage.removeItem("tradex_demo_latest_analysis");
   localStorage.removeItem("tradex_demo_analysis_history");
+  localStorage.removeItem("tradex_demo_psychology");
   saveSession(session);
   return session;
 }
@@ -183,6 +192,18 @@ export function saveAnalysisHistory(session: LocalSession, analysis: StoredAnaly
   notifyStorageUpdated();
 }
 
+export function getPsychologyEntries(session: LocalSession | null): PsychologyEntry[] {
+  if (!session) return [];
+  return readJson<PsychologyEntry[]>(psychologyKey(session), []);
+}
+
+export function savePsychologyEntry(session: LocalSession, entry: PsychologyEntry) {
+  const current = getPsychologyEntries(session);
+  const next = [entry, ...current].slice(0, 100);
+  localStorage.setItem(psychologyKey(session), JSON.stringify(next));
+  notifyStorageUpdated();
+}
+
 export function saveAnalysisToJournal(session: LocalSession, analysis: StoredAnalysis) {
   const entryZone = typeof analysis.entry === "object" ? analysis.entry.zone : analysis.entry ?? analysis.entryZone;
   const riskPlan = typeof analysis.risk === "object" ? analysis.risk : null;
@@ -236,6 +257,10 @@ function analysisKey(session: LocalSession) {
 
 function analysisHistoryKey(session: LocalSession) {
   return session.mode === "demo" ? "tradex_demo_analysis_history" : `tradex_analysis_history_${session.email}`;
+}
+
+function psychologyKey(session: LocalSession) {
+  return session.mode === "demo" ? "tradex_demo_psychology" : `tradex_psychology_${session.email}`;
 }
 
 function readJson<T>(key: string, fallback: T): T {
