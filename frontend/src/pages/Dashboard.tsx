@@ -281,25 +281,60 @@ function Card({
   tone?: "profit" | "loss" | "ai" | "neutral";
 }) {
   const colors = {
-    profit: "text-profit bg-profit/10",
-    loss: "text-loss bg-loss/10",
-    ai: "text-ai bg-ai/10",
-    neutral: "text-slate-300 bg-white/5"
+    profit: {
+      text: "text-profit",
+      bg: "bg-profit/10",
+      border: "border-profit/25",
+      glow: "shadow-[0_0_22px_rgba(34,197,94,0.08)]"
+    },
+    loss: {
+      text: "text-loss",
+      bg: "bg-loss/10",
+      border: "border-loss/25",
+      glow: "shadow-[0_0_22px_rgba(239,68,68,0.08)]"
+    },
+    ai: {
+      text: "text-ai",
+      bg: "bg-ai/10",
+      border: "border-ai/25",
+      glow: "shadow-[0_0_22px_rgba(224,178,51,0.08)]"
+    },
+    neutral: {
+      text: "text-ai",
+      bg: "bg-ai/10",
+      border: "border-ai/20",
+      glow: "shadow-[0_0_22px_rgba(224,178,51,0.06)]"
+    }
   };
+  const color = colors[tone];
+
   return (
-    <div className="rounded-lg border-2 border-ai/20 bg-panelSoft p-4 transition hover:-translate-y-0.5 hover:border-ai/40">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-base text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold">{value}</p>
+    <div className={`rounded-lg border-2 ${color.border} bg-panelSoft p-4 transition hover:-translate-y-0.5 hover:border-ai/45 ${color.glow}`}>
+      <div className="flex items-center gap-2">
+        <div className={`grid h-8 w-8 place-items-center rounded-full border ${color.border} ${color.bg} ${color.text}`}>
+          <Icon size={17} />
         </div>
-        <div className={`grid h-12 w-12 place-items-center rounded-lg ${colors[tone]}`}>
-          <Icon size={22} />
-        </div>
+        <p className={`text-sm font-semibold ${color.text}`}>{label}</p>
       </div>
-      <p className="mt-4 text-sm leading-6 text-slate-500">{helper}</p>
+
+      <p className="mt-5 text-3xl font-bold tracking-tight">{value}</p>
+      <p className={`mt-2 text-sm font-semibold ${color.text}`}>{helper}</p>
+
+      <div className="my-4 h-px bg-line/80" />
+
+      <div className="flex items-start gap-3 text-sm leading-6 text-slate-400">
+        <CheckCircle2 className={`mt-0.5 shrink-0 ${color.text}`} size={16} />
+        <p>{getCardInsight(label, value)}</p>
+      </div>
     </div>
   );
+}
+
+function getCardInsight(label: string, value: string) {
+  if (label === "Total Trades") return value === "0" ? "Add trades to start building your journal." : "Your journal is tracking real trade data.";
+  if (label === "Win Rate") return value === "--" ? "Complete more trades to see your true performance." : "Based on your saved completed trades.";
+  if (label === "Net Profit / Loss") return "Shows your current account result from completed trades.";
+  return value === "--" ? "Complete trades to calculate your discipline score." : "Keep following your trading rules consistently.";
 }
 
 function Metric({ title, value, tone }: { title: string; value: string | number; tone?: "profit" | "loss" }) {
