@@ -3,15 +3,15 @@ import { Calculator, CheckCircle2 } from "lucide-react";
 import { getSession, saveTrade } from "../lib/storage";
 
 const initialTrade = {
-  pair: "XAU/USD",
-  type: "BUY",
-  entry: "2360",
-  exit: "2385",
-  stopLoss: "2348",
-  takeProfit: "2385",
-  lotSize: "2",
-  strategy: "Breakout",
-  date: "2026-06-23",
+  pair: "",
+  type: "",
+  entry: "",
+  exit: "",
+  stopLoss: "",
+  takeProfit: "",
+  lotSize: "",
+  strategy: "",
+  date: "",
   notes: ""
 };
 
@@ -27,20 +27,25 @@ export function AddTrade() {
     const stopLoss = Number(trade.stopLoss);
     const takeProfit = Number(trade.takeProfit);
     const lotSize = Number(trade.lotSize);
-    const direction = trade.type === "BUY" ? 1 : -1;
-    const profit = (exit - entry) * lotSize * direction;
+    const hasProfitInputs = trade.type && trade.entry && trade.exit && trade.lotSize;
+    const hasRiskInputs = trade.entry && trade.stopLoss && trade.takeProfit;
+    const direction = trade.type === "SELL" ? -1 : 1;
+    const profit = hasProfitInputs ? (exit - entry) * lotSize * direction : null;
     const potentialProfit = Math.abs(takeProfit - entry);
     const risk = Math.abs(entry - stopLoss);
-    const riskReward = risk > 0 ? potentialProfit / risk : 0;
+    const riskReward = hasRiskInputs && risk > 0 ? potentialProfit / risk : null;
 
     return {
-      profit: Number.isFinite(profit) ? profit : 0,
-      riskReward: Number.isFinite(riskReward) ? riskReward : 0
+      profit: profit !== null && Number.isFinite(profit) ? profit : null,
+      riskReward: riskReward !== null && Number.isFinite(riskReward) ? riskReward : null
     };
   }, [trade]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (!trade.pair || !trade.type || !trade.entry || !trade.exit || !trade.stopLoss || !trade.takeProfit || !trade.lotSize || !trade.strategy || !trade.date || calculations.profit === null || calculations.riskReward === null) {
+      return;
+    }
     const session = getSession();
     if (session) {
       const savedTrade = {
@@ -54,7 +59,7 @@ export function AddTrade() {
         takeProfit: Number(trade.takeProfit),
         lotSize: Number(trade.lotSize),
         strategy: trade.strategy,
-        notes: trade.notes || "Saved from Add Trade form.",
+        notes: trade.notes,
         result: calculations.profit >= 0 ? "Win" as const : "Loss" as const,
         profit: calculations.profit,
         riskReward: `1:${calculations.riskReward.toFixed(2)}`,
@@ -104,7 +109,8 @@ export function AddTrade() {
       <form className="grid gap-6 xl:grid-cols-[1fr_340px]" onSubmit={submit}>
         <div className="panel grid gap-4 p-5 md:grid-cols-2">
           <Field label="Pair">
-            <select className="field" value={trade.pair} onChange={(e) => setTrade({ ...trade, pair: e.target.value })}>
+            <select className="field" required value={trade.pair} onChange={(e) => setTrade({ ...trade, pair: e.target.value })}>
+              <option value="">Select pair</option>
               <option>XAU/USD</option>
               <option>EUR/USD</option>
               <option>BTC/USD</option>
@@ -112,21 +118,22 @@ export function AddTrade() {
             </select>
           </Field>
           <Field label="Trade Type">
-            <select className="field" value={trade.type} onChange={(e) => setTrade({ ...trade, type: e.target.value })}>
+            <select className="field" required value={trade.type} onChange={(e) => setTrade({ ...trade, type: e.target.value })}>
+              <option value="">Select type</option>
               <option>BUY</option>
               <option>SELL</option>
             </select>
           </Field>
           {(["entry", "exit", "stopLoss", "takeProfit", "lotSize"] as const).map((key) => (
             <Field key={key} label={key.replace(/([A-Z])/g, " $1")}>
-              <input className="field" value={trade[key]} onChange={(e) => setTrade({ ...trade, [key]: e.target.value })} />
+              <input className="field" required inputMode="decimal" value={trade[key]} onChange={(e) => setTrade({ ...trade, [key]: e.target.value })} />
             </Field>
           ))}
           <Field label="Strategy">
-            <input className="field" value={trade.strategy} onChange={(e) => setTrade({ ...trade, strategy: e.target.value })} />
+            <input className="field" required value={trade.strategy} onChange={(e) => setTrade({ ...trade, strategy: e.target.value })} />
           </Field>
           <Field label="Date">
-            <input className="field" type="date" value={trade.date} onChange={(e) => setTrade({ ...trade, date: e.target.value })} />
+            <input className="field" required type="date" value={trade.date} onChange={(e) => setTrade({ ...trade, date: e.target.value })} />
           </Field>
           <div className="md:col-span-2">
             <label className="label">Notes</label>
@@ -153,9 +160,13 @@ export function AddTrade() {
             </div>
           </div>
           <div className="space-y-3">
-            <Summary label="Profit / Loss" value={`${calculations.profit >= 0 ? "+" : ""}$${calculations.profit.toFixed(2)}`} positive={calculations.profit >= 0} />
-            <Summary label="Risk Reward" value={`1:${calculations.riskReward.toFixed(2)}`} />
-            <Summary label="Setup Quality" value={calculations.riskReward >= 2 ? "Strong" : "Needs review"} />
+            <Summary
+              label="Profit / Loss"
+              value={calculations.profit === null ? "--" : `${calculations.profit >= 0 ? "+" : ""}$${calculations.profit.toFixed(2)}`}
+              positive={calculations.profit === null ? undefined : calculations.profit >= 0}
+            />
+            <Summary label="Risk Reward" value={calculations.riskReward === null ? "--" : `1:${calculations.riskReward.toFixed(2)}`} />
+            <Summary label="Setup Quality" value={calculations.riskReward === null ? "--" : calculations.riskReward >= 2 ? "Strong" : "Needs review"} />
           </div>
         </aside>
       </form>

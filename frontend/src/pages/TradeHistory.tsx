@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatMoney } from "../lib/format";
 import { getSession, getTrades } from "../lib/storage";
 
 export function TradeHistory() {
@@ -48,7 +49,7 @@ export function TradeHistory() {
                   <td className="px-5 py-4">{trade.entry}</td>
                   <td className="px-5 py-4">{trade.exit}</td>
                   <td className={`px-5 py-4 font-semibold ${trade.profit >= 0 ? "text-profit" : "text-loss"}`}>
-                    {trade.profit >= 0 ? "+" : ""}${trade.profit.toLocaleString()}
+                    {formatMoney(trade.profit)}
                   </td>
                   <td className="px-5 py-4">
                     <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${trade.result === "Win" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>

@@ -71,6 +71,7 @@ type LocalUser = {
 
 const SESSION_KEY = "tradex_session";
 const USERS_KEY = "tradex_users";
+export const TRADEX_STORAGE_EVENT = "tradex-storage-updated";
 
 export function getSession(): LocalSession | null {
   return readJson<LocalSession | null>(SESSION_KEY, null);
@@ -78,16 +79,19 @@ export function getSession(): LocalSession | null {
 
 export function saveSession(session: LocalSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  notifyStorageUpdated();
 }
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  notifyStorageUpdated();
 }
 
 export function createDemoSession(): LocalSession {
   const session: LocalSession = { mode: "demo", name: "Demo Trader", email: "demo@local" };
   localStorage.setItem("tradex_demo_trades", JSON.stringify([]));
   localStorage.removeItem("tradex_demo_latest_analysis");
+  localStorage.removeItem("tradex_demo_analysis_history");
   saveSession(session);
   return session;
 }
@@ -126,29 +130,49 @@ export function loginLocalUser(email: string, password: string): LocalSession {
 export function getTrades(session: LocalSession | null): Trade[] {
   if (!session) return [];
 
-  return readJson<Trade[]>(tradeKey(session), []);
+  const key = tradeKey(session);
+  const trades = readJson<Trade[]>(key, []);
+  const cleaned = trades.filter((trade) => !isLegacySampleTrade(trade));
+  if (cleaned.length !== trades.length) {
+    localStorage.setItem(key, JSON.stringify(cleaned));
+  }
+  return cleaned;
 }
 
 export function saveTrade(session: LocalSession, trade: Trade) {
   const current = getTrades(session);
   const next = [trade, ...current.filter((item) => item.id !== trade.id)];
   localStorage.setItem(tradeKey(session), JSON.stringify(next));
+  notifyStorageUpdated();
 }
 
 export function getLatestAnalysis(session: LocalSession | null): StoredAnalysis | null {
   if (!session) return null;
 
-  return readJson<StoredAnalysis | null>(analysisKey(session), null);
+  const key = analysisKey(session);
+  const analysis = readJson<StoredAnalysis | null>(key, null);
+  if (analysis && isLegacySampleAnalysis(analysis)) {
+    localStorage.removeItem(key);
+    return null;
+  }
+  return analysis;
 }
 
 export function saveLatestAnalysis(session: LocalSession, analysis: StoredAnalysis) {
   localStorage.setItem(analysisKey(session), JSON.stringify(analysis));
+  notifyStorageUpdated();
 }
 
 export function getAnalysisHistory(session: LocalSession | null): StoredAnalysis[] {
   if (!session) return [];
 
-  return readJson<StoredAnalysis[]>(analysisHistoryKey(session), []);
+  const key = analysisHistoryKey(session);
+  const history = readJson<StoredAnalysis[]>(key, []);
+  const cleaned = history.filter((analysis) => !isLegacySampleAnalysis(analysis));
+  if (cleaned.length !== history.length) {
+    localStorage.setItem(key, JSON.stringify(cleaned));
+  }
+  return cleaned;
 }
 
 export function saveAnalysisHistory(session: LocalSession, analysis: StoredAnalysis) {
@@ -156,6 +180,7 @@ export function saveAnalysisHistory(session: LocalSession, analysis: StoredAnaly
   const nextAnalysis = { ...analysis, id: analysis.id ?? String(Date.now()) };
   const next = [nextAnalysis, ...current.filter((item) => item.id !== nextAnalysis.id)].slice(0, 25);
   localStorage.setItem(analysisHistoryKey(session), JSON.stringify(next));
+  notifyStorageUpdated();
 }
 
 export function saveAnalysisToJournal(session: LocalSession, analysis: StoredAnalysis) {
@@ -220,4 +245,24 @@ function readJson<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function notifyStorageUpdated() {
+  window.dispatchEvent(new CustomEvent(TRADEX_STORAGE_EVENT));
+}
+
+function isLegacySampleTrade(trade: Trade) {
+  const sampleIds = [1, 2, 3, 4];
+  return sampleIds.includes(trade.id)
+    && ["XAU/USD", "EUR/USD", "BTC/USD", "GBP/USD"].includes(trade.pair)
+    && ["Breakout", "Reversal", "Trend Pullback"].includes(trade.strategy)
+    && ["2026-06-20", "2026-06-18", "2026-06-15", "2026-06-09"].includes(trade.date);
+}
+
+function isLegacySampleAnalysis(analysis: StoredAnalysis) {
+  return analysis.trend === "Bullish"
+    && analysis.pattern === "Ascending Triangle"
+    && analysis.entryZone === "2360"
+    && analysis.stopLoss === "2348"
+    && analysis.target === "2385";
 }

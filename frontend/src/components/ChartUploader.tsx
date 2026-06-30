@@ -57,11 +57,11 @@ const loadingSteps = [
 ];
 
 const initialContext = {
-  asset: "BTC/USD",
-  timeframe: "15 Minutes",
-  tradingStyle: "Day Trading",
-  riskPercent: "1",
-  accountBalance: "5000"
+  asset: "",
+  timeframe: "",
+  tradingStyle: "",
+  riskPercent: "",
+  accountBalance: ""
 };
 
 export function ChartUploader() {
@@ -101,7 +101,9 @@ export function ChartUploader() {
     const formData = new FormData();
     formData.append("image", file);
     formData.append("trade_id", "demo-trade");
-    Object.entries(context).forEach(([key, value]) => formData.append(key, value));
+    Object.entries(context).forEach(([key, value]) => {
+      if (value.trim()) formData.append(key, value);
+    });
 
     try {
       const response = await api.post<ChartAnalysis>("/analysis/analyze-chart", formData);
@@ -190,10 +192,11 @@ export function ChartUploader() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <Field label="Asset">
-              <input className="field" value={context.asset} onChange={(event) => setContext({ ...context, asset: event.target.value })} placeholder="BTC/USD" />
+              <input className="field" value={context.asset} onChange={(event) => setContext({ ...context, asset: event.target.value })} />
             </Field>
             <Field label="Timeframe">
               <select className="field" value={context.timeframe} onChange={(event) => setContext({ ...context, timeframe: event.target.value })}>
+                <option value="">Select timeframe</option>
                 <option>5 Minutes</option>
                 <option>15 Minutes</option>
                 <option>30 Minutes</option>
@@ -204,6 +207,7 @@ export function ChartUploader() {
             </Field>
             <Field label="Trading Style">
               <select className="field" value={context.tradingStyle} onChange={(event) => setContext({ ...context, tradingStyle: event.target.value })}>
+                <option value="">Select style</option>
                 <option>Scalping</option>
                 <option>Day Trading</option>
                 <option>Swing Trading</option>

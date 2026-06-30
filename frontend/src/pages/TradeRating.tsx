@@ -43,14 +43,14 @@ type RatingResult = {
 };
 
 const initialTrade = {
-  pair: "XAU/USD",
-  timeframe: "15M",
-  direction: "BUY",
+  pair: "",
+  timeframe: "",
+  direction: "",
   entry: "",
   stopLoss: "",
   takeProfit: "",
   exit: "",
-  lotSize: "1",
+  lotSize: "",
   strategy: "",
   notes: ""
 };
@@ -184,6 +184,7 @@ export function TradeRating() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <Field label="Pair">
               <select className="field" value={trade.pair} onChange={(event) => setTrade({ ...trade, pair: event.target.value })}>
+                <option value="">Select pair</option>
                 <option>XAU/USD</option>
                 <option>EUR/USD</option>
                 <option>BTC/USD</option>
@@ -193,6 +194,7 @@ export function TradeRating() {
             </Field>
             <Field label="Timeframe">
               <select className="field" value={trade.timeframe} onChange={(event) => setTrade({ ...trade, timeframe: event.target.value })}>
+                <option value="">Select timeframe</option>
                 <option>5M</option>
                 <option>15M</option>
                 <option>30M</option>
@@ -203,18 +205,19 @@ export function TradeRating() {
             </Field>
             <Field label="Direction">
               <select className="field" value={trade.direction} onChange={(event) => setTrade({ ...trade, direction: event.target.value })}>
+                <option value="">Select direction</option>
                 <option>BUY</option>
                 <option>SELL</option>
               </select>
             </Field>
             <Field label="Entry">
-              <input className="field" inputMode="decimal" value={trade.entry} onChange={(event) => setTrade({ ...trade, entry: event.target.value })} placeholder="2360" />
+              <input className="field" inputMode="decimal" value={trade.entry} onChange={(event) => setTrade({ ...trade, entry: event.target.value })} />
             </Field>
             <Field label="Stop Loss">
-              <input className="field" inputMode="decimal" value={trade.stopLoss} onChange={(event) => setTrade({ ...trade, stopLoss: event.target.value })} placeholder="2348" />
+              <input className="field" inputMode="decimal" value={trade.stopLoss} onChange={(event) => setTrade({ ...trade, stopLoss: event.target.value })} />
             </Field>
             <Field label="Take Profit">
-              <input className="field" inputMode="decimal" value={trade.takeProfit} onChange={(event) => setTrade({ ...trade, takeProfit: event.target.value })} placeholder="2385" />
+              <input className="field" inputMode="decimal" value={trade.takeProfit} onChange={(event) => setTrade({ ...trade, takeProfit: event.target.value })} />
             </Field>
             <Field label="Exit">
               <input className="field" inputMode="decimal" value={trade.exit} onChange={(event) => setTrade({ ...trade, exit: event.target.value })} placeholder="Optional" />
@@ -223,7 +226,7 @@ export function TradeRating() {
               <input className="field" inputMode="decimal" value={trade.lotSize} onChange={(event) => setTrade({ ...trade, lotSize: event.target.value })} />
             </Field>
             <Field label="Strategy">
-              <input className="field" value={trade.strategy} onChange={(event) => setTrade({ ...trade, strategy: event.target.value })} placeholder="Breakout Retest" />
+              <input className="field" value={trade.strategy} onChange={(event) => setTrade({ ...trade, strategy: event.target.value })} />
             </Field>
             <div className="sm:col-span-2">
               <label className="label">Trade Notes</label>

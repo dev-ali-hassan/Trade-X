@@ -82,6 +82,12 @@ type GroqChatResponse = {
   };
 };
 
+type AiProviderResponse = {
+  content: string;
+  model: string;
+  provider: AiProvider;
+};
+
 type AiProvider = "groq" | "gemini";
 
 type AiKeyConfig = {
@@ -100,15 +106,17 @@ export async function analyzeChart({ imageBuffer, mimeType, tradeContext }: Anal
 
   const imageBase64 = imageBuffer.toString("base64");
   const context = tradeContext ?? {};
-  const content = config.provider === "groq"
+  const response = config.provider === "groq"
     ? await analyzeWithGroq({ apiKey: config.key, imageBase64, mimeType, context })
     : await analyzeWithGemini({ apiKey: config.key, imageBase64, mimeType, context });
 
   try {
-    const parsed = JSON.parse(content) as Partial<ProfessionalChartAnalysis>;
+    const parsed = parseJsonObject(response.content) as Partial<ProfessionalChartAnalysis>;
     const normalized = normalizeAnalysis(parsed, context);
     console.log("[analysis] JSON parsing result", {
       parsed: true,
+      provider: response.provider,
+      model: response.model,
       direction: normalized.direction,
       confidence: normalized.confidence,
       targetCount: normalized.targets.length
@@ -130,58 +138,72 @@ async function analyzeWithGroq({
   imageBase64: string;
   mimeType: string;
   context: TradeContext;
-}) {
-  const model = process.env.GROQ_MODEL ?? "llama-3.2-11b-vision-preview";
+}): Promise<AiProviderResponse> {
+  if (Buffer.byteLength(imageBase64, "utf8") > 4 * 1024 * 1024) {
+    throw new Error("Chart image is too large for Groq vision. Please upload a PNG/JPG/WEBP under 3MB.");
+  }
 
-  console.log("[analysis] Groq vision request sent", { model });
+  const modelCandidates = getGroqModelCandidates();
+  let lastError = "";
 
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      max_completion_tokens: 1600,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text:
-                "You are Trade X AI, a professional trading chart analyst. Analyze only the uploaded chart image and any user context. Return only valid JSON in the exact requested schema. Do not add markdown, prose outside JSON, placeholders, or financial guarantees.\n\n" +
-                buildPrompt(context)
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`
+  for (const model of modelCandidates) {
+    console.log("[analysis] Groq vision request sent", { model });
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_completion_tokens: 1800,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  "You are Trade X AI, a professional trading chart analyst. Analyze only the uploaded chart image and any user context. Return only valid JSON in the exact requested schema. Do not add markdown, prose outside JSON, placeholders, or financial guarantees.\n\n" +
+                  buildPrompt(context)
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${imageBase64}`
+                }
               }
-            }
-          ]
-        }
-      ]
-    })
-  });
+            ]
+          }
+        ]
+      })
+    });
 
-  const rawResponse = await response.text();
-  console.log("[analysis] Groq response received", { ok: response.ok, status: response.status });
+    const rawResponse = await response.text();
+    console.log("[analysis] Groq response received", { ok: response.ok, status: response.status, model });
 
-  if (!response.ok) {
-    throw new Error(extractGroqError(rawResponse) || `Groq request failed with status ${response.status}.`);
+    if (!response.ok) {
+      lastError = extractGroqError(rawResponse) || `Groq request failed with status ${response.status}.`;
+      if (shouldTryNextModel(lastError, response.status, modelCandidates, model)) {
+        console.warn("[analysis] Retrying Groq vision with next supported model", { failedModel: model, reason: lastError });
+        continue;
+      }
+      throw new Error(lastError);
+    }
+
+    const groqResponse = JSON.parse(rawResponse) as GroqChatResponse;
+    const content = groqResponse.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      throw new Error("Groq returned an empty chart analysis response.");
+    }
+
+    return { content, model, provider: "groq" };
   }
 
-  const groqResponse = JSON.parse(rawResponse) as GroqChatResponse;
-  const content = groqResponse.choices?.[0]?.message?.content?.trim();
-  if (!content) {
-    throw new Error("Groq returned an empty chart analysis response.");
-  }
-
-  return content;
+  throw new Error(lastError || "Groq chart analysis failed.");
 }
 
 async function analyzeWithGemini({
@@ -194,7 +216,7 @@ async function analyzeWithGemini({
   imageBase64: string;
   mimeType: string;
   context: TradeContext;
-}) {
+}): Promise<AiProviderResponse> {
   const model = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
 
   console.log("[analysis] Gemini vision request sent", { model });
@@ -248,7 +270,7 @@ async function analyzeWithGemini({
     throw new Error("Gemini returned an empty chart analysis response.");
   }
 
-  return content;
+  return { content, model, provider: "gemini" };
 }
 
 function buildPrompt(context: TradeContext) {
@@ -390,6 +412,36 @@ function extractGroqError(rawResponse: string) {
     return parsed.error?.message;
   } catch {
     return rawResponse.slice(0, 300);
+  }
+}
+
+function getGroqModelCandidates() {
+  return Array.from(new Set([
+    process.env.GROQ_MODEL?.trim(),
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3.6-27b"
+  ].filter((model): model is string => Boolean(model))));
+}
+
+function shouldTryNextModel(message: string, status: number, models: string[], currentModel: string) {
+  const hasNextModel = models.indexOf(currentModel) < models.length - 1;
+  if (!hasNextModel) return false;
+  if (![400, 404].includes(status)) return false;
+
+  return /decommissioned|not supported|model.*not.*found|does not exist|invalid model/i.test(message);
+}
+
+function parseJsonObject(content: string) {
+  const trimmed = content.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("AI response did not contain a JSON object.");
   }
 }
 

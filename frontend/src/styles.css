@@ -8,6 +8,7 @@
 
 html {
   color-scheme: dark;
+  font-size: 17px;
 }
 
 body {
@@ -31,23 +32,23 @@ textarea {
 }
 
 .panel {
-  @apply rounded-lg border border-line bg-panel shadow-panel transition duration-200;
+  @apply rounded-lg border-2 border-ai/25 bg-panel shadow-panel transition duration-200;
 }
 
 .field {
-  @apply w-full rounded-lg border border-line bg-[#0b0b0c] px-3 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-ai;
+  @apply w-full rounded-lg border border-line bg-[#0b0b0c] px-4 py-3 text-base text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-ai;
 }
 
 .label {
-  @apply mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500;
+  @apply mb-2 block text-sm font-semibold uppercase tracking-[0.14em] text-slate-500;
 }
 
 .primary-button {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-ai px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#f0c766] disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-ai px-5 py-3 text-base font-semibold text-black transition hover:bg-[#f0c766] disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .secondary-button {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-panelSoft px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-ai/60;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-panelSoft px-5 py-3 text-base font-semibold text-slate-200 transition hover:border-ai/60;
 }
 
 @media (max-width: 640px) {
