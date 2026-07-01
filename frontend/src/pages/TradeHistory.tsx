@@ -26,6 +26,7 @@ export function TradeHistory() {
             <option>All</option>
             <option>Win</option>
             <option>Loss</option>
+            <option>Open</option>
           </select>
         </div>
       </div>
@@ -47,12 +48,20 @@ export function TradeHistory() {
                   <td className="px-5 py-4 font-semibold">{trade.pair}</td>
                   <td className="px-5 py-4">{trade.type}</td>
                   <td className="px-5 py-4">{trade.entry}</td>
-                  <td className="px-5 py-4">{trade.exit}</td>
+                  <td className="px-5 py-4">{trade.result === "Open" ? "--" : trade.exit}</td>
                   <td className={`px-5 py-4 font-semibold ${trade.profit >= 0 ? "text-profit" : "text-loss"}`}>
-                    {formatMoney(trade.profit)}
+                    {trade.result === "Open" ? "--" : formatMoney(trade.profit)}
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${trade.result === "Win" ? "bg-profit/10 text-profit" : "bg-loss/10 text-loss"}`}>
+                    <span
+                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                        trade.result === "Win"
+                          ? "bg-profit/10 text-profit"
+                          : trade.result === "Loss"
+                            ? "bg-loss/10 text-loss"
+                            : "bg-ai/10 text-ai"
+                      }`}
+                    >
                       {trade.result}
                     </span>
                   </td>

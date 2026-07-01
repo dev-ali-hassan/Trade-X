@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
   Brain,
@@ -53,13 +53,15 @@ const navGroups = [
 ];
 
 export default function App() {
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState<LocalSession | null>(() => getSession());
   const [, setStorageVersion] = useState(0);
   const trades = session ? getTrades(session) : [];
   const latestAnalysis = session ? getLatestAnalysis(session) : null;
   const analysisHistory = session ? getAnalysisHistory(session) : [];
-  const completedTrades = trades.filter((trade) => trade.profit !== 0);
+  const completedTrades = trades.filter((trade) => trade.result !== "Open");
+  const isAuthRoute = location.pathname === "/auth";
   const progressSteps = [
     {
       label: "Add Trade",
@@ -137,28 +139,30 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 overflow-x-hidden">
-          <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-line bg-ink/88 px-4 py-2 backdrop-blur md:px-10">
-            <div className="flex items-center gap-3 lg:hidden">
-              <button
-                className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-slate-200"
-                onClick={() => setMobileMenuOpen(true)}
-                aria-label="Open navigation menu"
-              >
-                <Menu size={18} />
-              </button>
-              <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
-            </div>
-            <ProgressLine steps={progressSteps} />
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                className="hidden items-center gap-2 rounded-md border border-ai/60 bg-ai/10 px-4 py-2.5 text-sm font-bold text-ai shadow-[0_0_16px_rgba(224,178,51,0.12)] transition hover:border-ai hover:bg-ai/15 sm:inline-flex"
-                onClick={logout}
-                aria-label="Account menu"
-              >
-                {session.mode === "demo" ? "Demo Account" : session.name}
-              </button>
-            </div>
-          </header>
+          {!isAuthRoute && (
+            <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-line bg-ink/88 px-4 py-2 backdrop-blur md:px-10">
+              <div className="flex items-center gap-3 lg:hidden">
+                <button
+                  className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-slate-200"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-label="Open navigation menu"
+                >
+                  <Menu size={18} />
+                </button>
+                <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+              </div>
+              <ProgressLine steps={progressSteps} />
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  className="hidden items-center gap-2 rounded-md border border-ai/60 bg-ai/10 px-4 py-2.5 text-sm font-bold text-ai shadow-[0_0_16px_rgba(224,178,51,0.12)] transition hover:border-ai hover:bg-ai/15 sm:inline-flex"
+                  onClick={logout}
+                  aria-label="Account menu"
+                >
+                  {session.mode === "demo" ? "Demo Account" : session.name}
+                </button>
+              </div>
+            </header>
+          )}
 
           <div className="px-4 py-3 md:px-10 md:py-4">
             <Routes>

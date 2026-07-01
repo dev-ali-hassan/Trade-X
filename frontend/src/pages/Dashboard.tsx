@@ -69,7 +69,13 @@ function Overview({ trades }: { trades: Trade[] }) {
       <SectionHeader title="Trading Overview" text="Based only on your saved trades." />
       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card icon={Activity} label="Total Trades" value={String(trades.length)} helper={trades.length ? "Saved journal entries" : "Start your first trade journal"} />
-        <Card icon={LineChart} label="Win Rate" value={trades.length ? `${stats.winRate}%` : "--"} helper={trades.length ? "Based on saved trades" : "Need trade history"} tone="profit" />
+        <Card
+          icon={LineChart}
+          label="Win Rate"
+          value={stats.completedTrades ? `${stats.winRate}%` : "--"}
+          helper={stats.completedTrades ? "Based on completed trades" : "Need completed trade history"}
+          tone="profit"
+        />
         <Card
           icon={BadgeDollarSign}
           label="Net Profit / Loss"
@@ -96,8 +102,9 @@ function getProfitHelper(profit: number, completedTrades: number) {
 }
 
 function WinLossChart({ trades }: { trades: Trade[] }) {
-  const wins = trades.filter((trade) => trade.result === "Win").length;
-  const losses = trades.filter((trade) => trade.result === "Loss").length;
+  const completedTrades = trades.filter((trade) => trade.result !== "Open");
+  const wins = completedTrades.filter((trade) => trade.result === "Win").length;
+  const losses = completedTrades.filter((trade) => trade.result === "Loss").length;
   const total = wins + losses;
   const minimumTrades = 5;
   const hasEnoughData = total >= minimumTrades;
@@ -166,13 +173,14 @@ function WinLossChart({ trades }: { trades: Trade[] }) {
 }
 
 function MonthlyPerformance({ trades }: { trades: Trade[] }) {
-  const totalProfit = trades.reduce((sum, trade) => sum + trade.profit, 0);
+  const completedTrades = trades.filter((trade) => trade.result !== "Open");
+  const totalProfit = completedTrades.reduce((sum, trade) => sum + trade.profit, 0);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month) => ({
     month,
     profit: 0
   }));
 
-  trades.forEach((trade) => {
+  completedTrades.forEach((trade) => {
     const month = months[new Date(trade.date).getMonth()];
     if (month) month.profit += trade.profit;
   });
@@ -195,7 +203,7 @@ function MonthlyPerformance({ trades }: { trades: Trade[] }) {
             {formatMoney(totalProfit)}
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            {trades.length ? `Based on ${trades.length} completed ${pluralize(trades.length, "trade")}` : "Based on your completed trades"}
+            {completedTrades.length ? `Based on ${completedTrades.length} completed ${pluralize(completedTrades.length, "trade")}` : "Based on your completed trades"}
           </p>
         </div>
         <div className="relative min-h-48 overflow-hidden">
@@ -393,9 +401,9 @@ function SectionHeader({ title, text }: { title: string; text: string }) {
 }
 
 function getStats(trades: Trade[]) {
-  const completedTrades = trades.filter((trade) => trade.profit !== 0);
-  const wins = trades.filter((trade) => trade.result === "Win").length;
-  const netProfit = trades.reduce((sum, trade) => sum + trade.profit, 0);
+  const completedTrades = trades.filter((trade) => trade.result !== "Open");
+  const wins = completedTrades.filter((trade) => trade.result === "Win").length;
+  const netProfit = completedTrades.reduce((sum, trade) => sum + trade.profit, 0);
   const avgRiskReward = trades.length
     ? trades.reduce((sum, trade) => sum + Number(trade.riskReward.split(":")[1] ?? 0), 0) / trades.length
     : 0;
@@ -407,7 +415,7 @@ function getStats(trades: Trade[]) {
     netProfit,
     avgRiskReward,
     disciplineScore,
-    winRate: trades.length ? Math.round((wins / trades.length) * 100) : 0
+    winRate: completedTrades.length ? Math.round((wins / completedTrades.length) * 100) : 0
   };
 }
 

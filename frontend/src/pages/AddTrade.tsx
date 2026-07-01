@@ -18,7 +18,6 @@ const initialTrade = {
 export function AddTrade() {
   const [trade, setTrade] = useState(initialTrade);
   const [saved, setSaved] = useState(false);
-  const [autoSaved, setAutoSaved] = useState(false);
   const firstRender = useRef(true);
 
   const calculations = useMemo(() => {
@@ -43,10 +42,11 @@ export function AddTrade() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!trade.pair || !trade.type || !trade.entry || !trade.exit || !trade.stopLoss || !trade.takeProfit || !trade.lotSize || !trade.strategy || !trade.date || calculations.profit === null || calculations.riskReward === null) {
+    if (!trade.pair || !trade.type || !trade.entry || !trade.stopLoss || !trade.takeProfit || !trade.lotSize || !trade.strategy || !trade.date || calculations.riskReward === null) {
       return;
     }
     const session = getSession();
+    const profit = calculations.profit ?? 0;
     if (session) {
       const savedTrade = {
         id: Date.now(),
@@ -54,14 +54,14 @@ export function AddTrade() {
         pair: trade.pair,
         type: trade.type as "BUY" | "SELL",
         entry: Number(trade.entry),
-        exit: Number(trade.exit),
+        exit: trade.exit ? Number(trade.exit) : 0,
         stopLoss: Number(trade.stopLoss),
         takeProfit: Number(trade.takeProfit),
         lotSize: Number(trade.lotSize),
         strategy: trade.strategy,
         notes: trade.notes,
-        result: calculations.profit >= 0 ? "Win" as const : "Loss" as const,
-        profit: calculations.profit,
+        result: trade.exit ? (profit >= 0 ? "Win" as const : "Loss" as const) : "Open" as const,
+        profit,
         riskReward: `1:${calculations.riskReward.toFixed(2)}`,
         emotion: "Confident" as const,
         aiScore: calculations.riskReward >= 2 ? 8 : 5
@@ -80,8 +80,6 @@ export function AddTrade() {
 
     const timer = window.setTimeout(() => {
       localStorage.setItem("tradex_draft_trade", JSON.stringify(trade));
-      setAutoSaved(true);
-      window.setTimeout(() => setAutoSaved(false), 1800);
     }, 650);
 
     return () => window.clearTimeout(timer);
@@ -89,11 +87,6 @@ export function AddTrade() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      {autoSaved && (
-        <div className="fixed right-4 top-20 z-30 rounded-lg border border-ai/30 bg-ai/10 px-4 py-3 text-sm text-ai shadow-panel">
-          Draft auto-saved
-        </div>
-      )}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Add Trade</h1>
         <p className="mt-2 text-slate-500">Record entries, exits, strategy notes, and trade quality in one simple form.</p>
@@ -124,9 +117,21 @@ export function AddTrade() {
               <option>SELL</option>
             </select>
           </Field>
-          {(["entry", "exit", "stopLoss", "takeProfit", "lotSize"] as const).map((key) => (
-            <Field key={key} label={key.replace(/([A-Z])/g, " $1")}>
-              <input className="field" required inputMode="decimal" value={trade[key]} onChange={(e) => setTrade({ ...trade, [key]: e.target.value })} />
+          {([
+            { key: "entry", label: "Entry", required: true },
+            { key: "exit", label: "Exit", required: false },
+            { key: "stopLoss", label: "Stop Loss", required: true },
+            { key: "takeProfit", label: "Take Profit", required: true },
+            { key: "lotSize", label: "Lot Size", required: true }
+          ] as const).map((item) => (
+            <Field key={item.key} label={item.label} optional={!item.required}>
+              <input
+                className="field"
+                required={item.required}
+                inputMode="decimal"
+                value={trade[item.key]}
+                onChange={(e) => setTrade({ ...trade, [item.key]: e.target.value })}
+              />
             </Field>
           ))}
           <Field label="Strategy">
@@ -174,10 +179,12 @@ export function AddTrade() {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, optional, children }: { label: string; optional?: boolean; children: ReactNode }) {
   return (
     <div>
-      <label className="label">{label}</label>
+      <label className="label">
+        {label} {optional && <span className="normal-case tracking-normal text-slate-500">(Optional)</span>}
+      </label>
       {children}
     </div>
   );

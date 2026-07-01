@@ -10,7 +10,7 @@ export type Trade = {
   lotSize: number;
   strategy: string;
   notes: string;
-  result: "Win" | "Loss";
+  result: "Win" | "Loss" | "Open";
   profit: number;
   riskReward: string;
   emotion: "Confident" | "Fear" | "FOMO" | "Revenge";
