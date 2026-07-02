@@ -3,31 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trade X</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: #050506;
-        font-family: Arial, sans-serif;
-      }
-
-      .logo {
-        width: 220px;
-        max-width: 80%;
-        animation: pulse 2s ease-in-out infinite;
-      }
-
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 0.8; }
-        50% { transform: scale(1.08); opacity: 1; }
-      }
-    </style>
-    <meta http-equiv="refresh" content="3;url=./frontend/dist/index.html" />
+    <title>Trading Journal Dashboard</title>
   </head>
   <body>
-    <img class="logo" src="./logo.png" alt="Trade X logo" />
+    <div id="root"></div>
+    <script type="module">
+      const appBase = "/Trade-X/frontend/dist/";
+      const appHtml = await fetch(`${appBase}index.html`).then((response) => {
+        if (!response.ok) throw new Error("Trade X app build was not found.");
+        return response.text();
+      });
+
+      const assetPath = (value) => value.replace("/Trade-X/", appBase);
+      const cssMatch = appHtml.match(/href="([^"]+\.css)"/);
+      const scriptMatch = appHtml.match(/src="([^"]+\.js)"/);
+
+      if (cssMatch) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.crossOrigin = "";
+        link.href = assetPath(cssMatch[1]);
+        document.head.appendChild(link);
+      }
+
+      if (!scriptMatch) {
+        throw new Error("Trade X app script was not found.");
+      }
+
+      await import(assetPath(scriptMatch[1]));
+    </script>
   </body>
 </html>
