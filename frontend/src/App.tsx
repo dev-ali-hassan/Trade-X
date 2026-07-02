@@ -107,16 +107,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-ink text-slate-100">
-      <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
-        <aside className="hidden border-r border-line bg-[#080808] px-6 py-5 lg:block">
-          <div className="mb-7">
-            <img src={logoSrc} alt="Logo" className="h-auto w-48 object-contain" />
+      <div className="grid min-h-screen lg:grid-cols-[250px_1fr]">
+        <aside className="hidden border-r border-line bg-[#080808] px-5 py-4 lg:block">
+          <div className="mb-6">
+            <img src={logoSrc} alt="Logo" className="h-auto w-40 object-contain" />
           </div>
 
-          <nav className="space-y-7">
+          <nav className="space-y-5">
             {navGroups.map((group) => (
               <div key={group.title}>
-                <p className="mb-3 px-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
+                <p className="mb-2.5 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
                   {group.title}
                 </p>
                 <div className="space-y-1.5">
@@ -128,13 +128,13 @@ export default function App() {
             ))}
           </nav>
 
-          <div className="mt-9 rounded-lg border border-profit/20 bg-profit/5 p-5">
-            <div className="mb-3 flex items-center gap-2 text-profit">
-              <TrendingUp size={20} />
-              <span className="text-base font-semibold">Discipline Score</span>
+          <div className="mt-7 rounded-lg border border-profit/20 bg-profit/5 p-4">
+            <div className="mb-2 flex items-center gap-2 text-profit">
+              <TrendingUp size={17} />
+              <span className="text-sm font-semibold">Discipline Score</span>
             </div>
-            <p className="text-4xl font-bold">{disciplineScore}%</p>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
+            <p className="text-3xl font-bold">{disciplineScore}%</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
               {completedTrades.length === 0 ? "Complete trades to calculate this score." : "Based on completed journal entries."}
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function App() {
 
         <main className="min-w-0 overflow-x-hidden">
           {!isAuthRoute && (
-            <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between border-b border-line bg-ink/88 px-4 py-2 backdrop-blur md:px-10">
+            <header className="sticky top-0 z-20 flex min-h-12 items-center justify-between border-b border-line bg-ink/88 px-4 py-2 backdrop-blur md:px-8">
               <div className="flex items-center gap-3 lg:hidden">
                 <button
                   className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-panel text-slate-200"
@@ -156,7 +156,7 @@ export default function App() {
               <ProgressLine steps={progressSteps} />
               <div className="flex min-w-0 items-center gap-3">
                 <button
-                  className="hidden items-center gap-2 rounded-md border border-ai/60 bg-ai/10 px-4 py-2.5 text-sm font-bold text-ai shadow-[0_0_16px_rgba(224,178,51,0.12)] transition hover:border-ai hover:bg-ai/15 sm:inline-flex"
+                  className="hidden items-center gap-2 rounded-md border border-ai/60 bg-ai/10 px-3.5 py-2 text-sm font-bold text-ai shadow-[0_0_16px_rgba(224,178,51,0.12)] transition hover:border-ai hover:bg-ai/15 sm:inline-flex"
                   onClick={logout}
                   aria-label="Account menu"
                 >
@@ -166,7 +166,7 @@ export default function App() {
             </header>
           )}
 
-          <div className="px-4 py-3 md:px-10 md:py-4">
+          <div className="px-4 py-3 md:px-8 md:py-4">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/add-trade/*" element={<AddTrade />} />
@@ -217,9 +217,9 @@ function ProgressLine({ steps }: { steps: Array<{ label: string; complete: boole
 
   return (
     <div className="hidden min-w-0 flex-1 items-center lg:flex">
-      <div className="w-full max-w-4xl rounded-full border-2 border-ai/35 bg-panel/80 px-8 py-4 shadow-[0_0_26px_rgba(224,178,51,0.08)]">
+      <div className="w-full max-w-3xl rounded-full border-2 border-ai/35 bg-panel/80 px-7 py-3 shadow-[0_0_26px_rgba(224,178,51,0.08)]">
         <div className="relative grid grid-cols-4">
-          <div className="absolute left-[12.5%] right-[12.5%] top-[11px] grid grid-cols-3 gap-0">
+          <div className="absolute left-[12.5%] right-[12.5%] top-[9px] grid grid-cols-3 gap-0">
             {steps.slice(0, -1).map((step, index) => (
               <span
                 key={`${step.label}-connector`}
@@ -232,14 +232,14 @@ function ProgressLine({ steps }: { steps: Array<{ label: string; complete: boole
           {steps.map((step) => (
             <div key={step.label} className="relative z-10 flex flex-col items-center text-center">
               <span
-                className={`grid h-6 w-6 place-items-center rounded-full border-2 transition ${
+                className={`grid h-5 w-5 place-items-center rounded-full border-2 transition ${
                   step.complete ? "border-ai bg-ai shadow-glow" : "border-slate-300 bg-ink"
                 }`}
                 aria-label={`${step.label} ${step.complete ? "completed" : "pending"}`}
               >
-                <span className={`h-2.5 w-2.5 rounded-full ${step.complete ? "bg-black" : "bg-transparent"}`} />
+                <span className={`h-2 w-2 rounded-full ${step.complete ? "bg-black" : "bg-transparent"}`} />
               </span>
-              <span className={`mt-2 text-sm font-semibold ${step.complete ? "text-ai" : "text-slate-400"}`}>
+              <span className={`mt-1.5 text-xs font-semibold ${step.complete ? "text-ai" : "text-slate-400"}`}>
                 {step.label}
               </span>
             </div>
@@ -266,14 +266,14 @@ function NavItem({
       to={to}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `group flex items-center gap-3 rounded-lg px-4 py-3 text-base font-semibold transition ${
+        `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
           isActive
             ? "bg-ai/12 text-ai shadow-glow"
             : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
         }`
       }
     >
-      <Icon size={21} />
+      <Icon size={18} />
       <span>{label}</span>
     </NavLink>
   );

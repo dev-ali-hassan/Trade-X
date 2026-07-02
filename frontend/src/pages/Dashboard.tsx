@@ -23,7 +23,7 @@ export function Dashboard() {
   const trades = getTrades(session);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <WelcomeHero onAddTrade={() => navigate("/add-trade")} onAnalyze={() => navigate("/ai-analysis")} />
       <Overview trades={trades} />
       <section className="grid gap-4 xl:grid-cols-2">
@@ -37,16 +37,16 @@ export function Dashboard() {
 
 function WelcomeHero({ onAddTrade, onAnalyze }: { onAddTrade: () => void; onAnalyze: () => void }) {
   return (
-    <section className="panel overflow-hidden p-5 md:p-6">
-      <div className="grid gap-5 xl:items-center">
+    <section className="panel overflow-hidden p-4 md:p-5">
+      <div className="grid gap-4 xl:items-center">
         <div>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-ai/30 bg-ai/10 px-4 py-1.5 text-sm font-semibold text-ai">
-            <Sparkles size={16} />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-ai/30 bg-ai/10 px-3 py-1 text-xs font-semibold text-ai">
+            <Sparkles size={14} />
             Start here
           </div>
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Welcome to Trade-X</h1>
-          <p className="mt-3 max-w-3xl text-base text-slate-400">Build your trading history and let AI analyze your decisions.</p>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Welcome to Trade-X</h1>
+          <p className="mt-2 max-w-3xl text-sm text-slate-400">Build your trading history and let AI analyze your decisions.</p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button className="primary-button" onClick={onAddTrade}>
               <PlusCircle size={18} />
               Add First Trade
@@ -65,9 +65,9 @@ function WelcomeHero({ onAddTrade, onAnalyze }: { onAddTrade: () => void; onAnal
 function Overview({ trades }: { trades: Trade[] }) {
   const stats = getStats(trades);
   return (
-    <section className="panel p-5 md:p-6">
+    <section className="panel p-4 md:p-5">
       <SectionHeader title="Trading Overview" text="Based only on your saved trades." />
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card icon={Activity} label="Total Trades" value={String(trades.length)} helper={trades.length ? "Saved journal entries" : "Start your first trade journal"} />
         <Card
           icon={LineChart}
@@ -255,12 +255,12 @@ function LearningCoach({ tradeCount, trades, onAnalyze }: { tradeCount: number; 
   const mistake = isExperienced ? getCommonMistake(trades) : null;
 
   return (
-    <section className="panel p-5 md:p-6">
+    <section className="panel p-4 md:p-5">
       <SectionHeader title="AI Trading Coach" text="Your AI assistant learns from your trades." />
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="rounded-lg border-2 border-ai/20 bg-panelSoft p-5">
-          <p className="text-base text-slate-500">Currently:</p>
-          <p className="mt-2 text-2xl font-semibold">{tradeCount ? "Learning from your journal." : "No trading data available."}</p>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_300px]">
+        <div className="rounded-lg border-2 border-ai/20 bg-panelSoft p-4">
+          <p className="text-sm text-slate-500">Currently:</p>
+          <p className="mt-2 text-xl font-semibold">{tradeCount ? "Learning from your journal." : "No trading data available."}</p>
           {isExperienced && strongest && mistake ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Metric title="Strongest setup" value={strongest.name} />
@@ -271,15 +271,15 @@ function LearningCoach({ tradeCount, trades, onAnalyze }: { tradeCount: number; 
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {["Best strategies", "Winning patterns", "Common mistakes", "Risk management", "Trading psychology"].map((item) => (
-                <div key={item} className="flex items-center gap-3 text-base text-slate-300">
-                  <CheckCircle2 size={18} className="text-profit" />
+                <div key={item} className="flex items-center gap-3 text-sm text-slate-300">
+                  <CheckCircle2 size={16} className="text-profit" />
                   {item}
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div className="rounded-lg border-2 border-ai/35 bg-ai/10 p-5">
+        <div className="rounded-lg border-2 border-ai/35 bg-ai/10 p-4">
           {!isExperienced && (
             <div className="mb-4">
               <div className="flex items-center justify-between text-sm font-semibold">
@@ -291,7 +291,7 @@ function LearningCoach({ tradeCount, trades, onAnalyze }: { tradeCount: number; 
               </div>
             </div>
           )}
-          <p className="text-lg font-semibold">
+          <p className="text-base font-semibold">
             {isExperienced
               ? "Personal coaching is active from your saved journal."
               : tradeCount
@@ -354,21 +354,21 @@ function Card({
   const color = colors[tone];
 
   return (
-    <div className={`rounded-lg border-2 ${color.border} bg-panelSoft p-4 transition hover:-translate-y-0.5 hover:border-ai/45 ${color.glow}`}>
+    <div className={`rounded-lg border-2 ${color.border} bg-panelSoft p-3.5 transition hover:-translate-y-0.5 hover:border-ai/45 ${color.glow}`}>
       <div className="flex items-center gap-2">
-        <div className={`grid h-8 w-8 place-items-center rounded-full border ${color.border} ${color.bg} ${color.text}`}>
-          <Icon size={17} />
+        <div className={`grid h-7 w-7 place-items-center rounded-full border ${color.border} ${color.bg} ${color.text}`}>
+          <Icon size={15} />
         </div>
-        <p className={`text-sm font-semibold ${color.text}`}>{label}</p>
+        <p className={`text-xs font-semibold ${color.text}`}>{label}</p>
       </div>
 
-      <p className="mt-5 text-3xl font-bold tracking-tight">{value}</p>
-      <p className={`mt-2 text-sm font-semibold ${color.text}`}>{helper}</p>
+      <p className="mt-4 text-2xl font-bold tracking-tight">{value}</p>
+      <p className={`mt-1.5 text-xs font-semibold ${color.text}`}>{helper}</p>
 
-      <div className="my-4 h-px bg-line/80" />
+      <div className="my-3 h-px bg-line/80" />
 
-      <div className="flex items-start gap-3 text-sm leading-6 text-slate-400">
-        <CheckCircle2 className={`mt-0.5 shrink-0 ${color.text}`} size={16} />
+      <div className="flex items-start gap-2 text-xs leading-5 text-slate-400">
+        <CheckCircle2 className={`mt-0.5 shrink-0 ${color.text}`} size={14} />
         <p>{getCardInsight(label, value)}</p>
       </div>
     </div>
@@ -385,8 +385,8 @@ function getCardInsight(label: string, value: string) {
 function Metric({ title, value, tone }: { title: string; value: string | number; tone?: "profit" | "loss" }) {
   return (
     <div className="rounded-lg border-2 border-ai/20 bg-panelSoft p-4">
-      <p className="text-sm uppercase tracking-[0.14em] text-slate-500">{title}</p>
-      <p className={`mt-2 text-lg font-semibold ${tone === "profit" ? "text-profit" : tone === "loss" ? "text-loss" : ""}`}>{value}</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{title}</p>
+      <p className={`mt-2 text-base font-semibold ${tone === "profit" ? "text-profit" : tone === "loss" ? "text-loss" : ""}`}>{value}</p>
     </div>
   );
 }
@@ -394,8 +394,8 @@ function Metric({ title, value, tone }: { title: string; value: string | number;
 function SectionHeader({ title, text }: { title: string; text: string }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold">{title}</h2>
-      <p className="mt-1.5 text-base text-slate-500">{text}</p>
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <p className="mt-1 text-sm text-slate-500">{text}</p>
     </div>
   );
 }
