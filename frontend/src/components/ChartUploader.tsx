@@ -1,7 +1,7 @@
 import { ChangeEvent, ReactNode, useMemo, useState } from "react";
 import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, LineChart, ShieldAlert, Target, UploadCloud } from "lucide-react";
 import { AxiosError } from "axios";
-import { api, hasConfiguredApiBaseUrl } from "../api/client";
+import { api } from "../api/client";
 import {
   getAnalysisHistory,
   getLatestAnalysis,
@@ -64,9 +64,6 @@ const initialContext = {
   accountBalance: ""
 };
 
-const browserGeminiKeyStorage = "tradex_gemini_api_key";
-const hostedPages = typeof window !== "undefined" && window.location.hostname.endsWith("github.io");
-
 export function ChartUploader() {
   const session = getSession();
   const savedAnalysis = normalizeStoredAnalysis(getLatestAnalysis(session));
@@ -77,7 +74,6 @@ export function ChartUploader() {
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ChartAnalysis | null>(savedAnalysis);
-  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem(browserGeminiKeyStorage) ?? "");
 
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : chartImage), [chartImage, file]);
   const history = getAnalysisHistory(session).map(normalizeStoredAnalysis).filter((item): item is ChartAnalysis => Boolean(item)).slice(0, 4);
@@ -122,46 +118,11 @@ export function ChartUploader() {
       setResult(nextResult);
       showToast("AI chart report complete");
     } catch (requestError) {
-      const key = geminiKey.trim();
-      if (key) {
-        try {
-          const fallbackResult = await analyzeWithGeminiInBrowser(file, context, key);
-          const nextResult = normalizeStoredAnalysis({
-            ...fallbackResult,
-            chartImage,
-            savedToJournal: false,
-            createdAt: new Date().toISOString()
-          });
-          if (!nextResult) throw new Error("AI response could not be displayed.");
-          saveAnalysis(nextResult);
-          setResult(nextResult);
-          showToast("AI chart report complete");
-          return;
-        } catch (geminiError) {
-          setError(getGeminiError(geminiError));
-          setResult(null);
-          showToast("Chart analysis failed");
-          return;
-        }
-      }
-
-      const message = hostedPages && !hasConfiguredApiBaseUrl
-        ? "GitHub Pages needs either a deployed backend URL or your Gemini key below. Add your Gemini key once, then click Analyze Chart again."
-        : getApiError(requestError);
-      setError(message);
+      setError(getApiError(requestError));
       setResult(null);
       showToast("Chart analysis failed");
     } finally {
       setLoading(false);
-    }
-  }
-
-  function updateGeminiKey(value: string) {
-    setGeminiKey(value);
-    if (value.trim()) {
-      localStorage.setItem(browserGeminiKeyStorage, value.trim());
-    } else {
-      localStorage.removeItem(browserGeminiKeyStorage);
     }
   }
 
@@ -258,22 +219,6 @@ export function ChartUploader() {
               <input className="field" inputMode="decimal" value={context.accountBalance} onChange={(event) => setContext({ ...context, accountBalance: event.target.value })} />
             </Field>
           </div>
-
-          {hostedPages && !hasConfiguredApiBaseUrl && (
-            <div className="mt-5 rounded-lg border border-ai/30 bg-ai/10 p-4">
-              <label className="label">Gemini API key for hosted analysis</label>
-              <input
-                className="field"
-                type="password"
-                value={geminiKey}
-                placeholder="Paste Gemini key"
-                onChange={(event) => updateGeminiKey(event.target.value)}
-              />
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Stored only in this browser. This lets the GitHub website analyze charts even without a separate backend server.
-              </p>
-            </div>
-          )}
 
           <button className="primary-button mt-5 w-full" disabled={!file || loading} onClick={analyze}>
             {loading ? "Analyzing Chart..." : "Analyze Chart"}
@@ -446,95 +391,11 @@ function isShort(direction: string) {
   return direction.includes("SHORT") || direction.includes("SELL");
 }
 
-async function analyzeWithGeminiInBrowser(file: File, context: typeof initialContext, apiKey: string) {
-  const base64Image = (await readFileAsDataUrl(file)).split(",")[1] ?? "";
-  if (!base64Image) throw new Error("Chart image could not be read.");
-
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: buildBrowserAnalysisPrompt(context) },
-            {
-              inline_data: {
-                mime_type: file.type || "image/png",
-                data: base64Image
-              }
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        response_mime_type: "application/json",
-        temperature: 0.2
-      }
-    })
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || "Gemini analysis failed.");
-  }
-
-  const text = data.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join("") ?? "";
-  return parseAiJson(text);
-}
-
-function buildBrowserAnalysisPrompt(context: typeof initialContext) {
-  return `You are Trade X AI, a professional trading chart analyst. Analyze the uploaded chart image only and create a practical trade plan. Use visible price action, market structure, support and resistance, supply and demand, liquidity, candlestick behavior, and any visible EMA, RSI, MACD, volume, or ATR.
-
-Context:
-Asset: ${context.asset || "unknown"}
-Timeframe: ${context.timeframe || "unknown"}
-Trading style: ${context.tradingStyle || "unknown"}
-Risk percent: ${context.riskPercent || "unknown"}
-Account balance: ${context.accountBalance || "unknown"}
-
-Return only valid JSON. Do not use markdown. Do not add explanation outside JSON.
-Use this exact schema:
-{
- "asset":"",
- "direction":"LONG | SHORT | NO TRADE",
- "confidence":0,
- "strategy":"",
- "marketStructure":"",
- "entry":{"zone":"","reason":""},
- "risk":{"stopLoss":"","riskReward":"","invalidation":""},
- "targets":[{"name":"TP1","price":"","reason":""}],
- "indicators":{"ema":"","rsi":"","macd":"","volume":"","atr":""},
- "reasoning":"",
- "risks":[],
- "alternativeScenario":""
-}`;
-}
-
-function parseAiJson(text: string) {
-  try {
-    return JSON.parse(text) as ChartAnalysis;
-  } catch {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(text.slice(start, end + 1)) as ChartAnalysis;
-    }
-    throw new Error("AI returned an unreadable response.");
-  }
-}
-
-function getGeminiError(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "AI chart analysis failed.";
-}
-
 function getApiError(error: unknown) {
   const axiosError = error as AxiosError<{ message?: string; detail?: string }>;
-  return axiosError.response?.data?.detail || axiosError.response?.data?.message || "AI chart analysis failed.";
+  if (axiosError.code === "ECONNABORTED") return "The backend took too long to respond. Please retry.";
+  if (!axiosError.response) return "The AI backend is offline or unreachable. Please try again.";
+  return axiosError.response.data?.message || axiosError.response.data?.detail || "AI chart analysis failed. Please retry.";
 }
 
 function normalizeStoredAnalysis(input: NormalizableAnalysis | null): ChartAnalysis | null {

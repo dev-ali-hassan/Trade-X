@@ -301,7 +301,9 @@ function ResultBox({ icon: Icon, title, text, danger }: { icon: typeof Lightbulb
 
 function getApiError(error: unknown) {
   const axiosError = error as AxiosError<{ message?: string; detail?: string }>;
-  return axiosError.response?.data?.detail || axiosError.response?.data?.message || "Trade rating failed.";
+  if (axiosError.code === "ECONNABORTED") return "The backend took too long to respond. Please retry.";
+  if (!axiosError.response) return "The AI backend is offline or unreachable. Please try again.";
+  return axiosError.response.data?.message || axiosError.response.data?.detail || "Trade rating failed. Please retry.";
 }
 
 function readFileAsDataUrl(file: File) {

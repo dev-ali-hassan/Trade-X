@@ -3,6 +3,7 @@ import multer from "multer";
 import { z } from "zod";
 import { supabase } from "../database/supabase.js";
 import { analyzeChart } from "../services/aiService.js";
+import { logger } from "../utils/logger.js";
 
 const router = Router();
 const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
@@ -62,7 +63,7 @@ router.post("/analyze-chart", upload.single("image"), async (req, res) => {
 
   const tradeContext = removeEmptyValues(parsedContext.data);
 
-  console.log("[analysis] Image received", {
+  logger.info("Chart image received", {
     mimeType: req.file.mimetype,
     bytes: req.file.size,
     hasContext: Boolean(tradeContext)
@@ -87,7 +88,7 @@ router.post("/analyze-chart", upload.single("image"), async (req, res) => {
       });
     }
 
-    console.log("[analysis] JSON response sent", {
+    logger.info("Chart analysis response sent", {
       direction: result.direction,
       confidence: result.confidence
     });
@@ -95,9 +96,10 @@ router.post("/analyze-chart", upload.single("image"), async (req, res) => {
     res.json(result);
   } catch (error) {
     const message = sanitizeApiError(error instanceof Error ? error.message : String(error));
-    console.error("[analysis] API error", { message });
-    res.status(502).json({
-      message: "AI chart analysis failed.",
+    logger.error("Chart analysis failed", { message });
+    const status = message.includes("GEMINI_API_KEY") ? 503 : 502;
+    res.status(status).json({
+      message: getFriendlyAnalysisMessage(message),
       detail: message
     });
   }
@@ -116,6 +118,18 @@ function sanitizeApiError(message: string) {
     .replace(/[a-z]{2,}[-_][A-Za-z0-9_*]{12,}/g, "[redacted-api-key]")
     .replace(/AIza[A-Za-z0-9_-]{12,}/g, "[redacted-api-key]")
     .replace(/gsk_[A-Za-z0-9_-]{12,}/g, "[redacted-api-key]");
+}
+
+function getFriendlyAnalysisMessage(message: string) {
+  if (message.includes("GEMINI_API_KEY")) {
+    return "AI analysis is not configured yet. Please add the Gemini API key on the backend.";
+  }
+
+  if (/timeout|aborted/i.test(message)) {
+    return "AI analysis timed out. Please retry with a clearer or smaller chart image.";
+  }
+
+  return "AI chart analysis failed. Please retry in a moment.";
 }
 
 export default router;

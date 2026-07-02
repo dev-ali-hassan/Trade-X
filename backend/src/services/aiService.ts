@@ -1,5 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
+import { logger } from "../utils/logger.js";
 
 type AnalyzeInput = {
   imageBuffer: Buffer;
@@ -70,207 +69,125 @@ type GeminiGenerateResponse = {
   };
 };
 
-type GroqChatResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string;
-    };
-    finish_reason?: string;
-  }>;
-  error?: {
-    message?: string;
-  };
-};
-
-type AiProviderResponse = {
-  content: string;
-  model: string;
-  provider: AiProvider;
-};
-
-type AiProvider = "groq" | "gemini";
-
-type AiKeyConfig = {
-  key: string;
-  provider: AiProvider;
-};
+const GEMINI_TIMEOUT_MS = 45_000;
 
 export async function analyzeChart({ imageBuffer, mimeType, tradeContext }: AnalyzeInput): Promise<ProfessionalChartAnalysis> {
-  const config = getApiKey();
-  console.log("[analysis] Image received by AI service", { mimeType, bytes: imageBuffer.byteLength });
-  console.log("[analysis] AI key loaded", { loaded: Boolean(config?.key), provider: config?.provider });
-
-  if (!config) {
-    throw new Error("GROQ_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY, or API_KEY is not configured in the backend environment.");
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured in the backend environment.");
   }
 
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-1.5-flash";
   const imageBase64 = imageBuffer.toString("base64");
   const context = tradeContext ?? {};
-  const response = config.provider === "groq"
-    ? await analyzeWithGroq({ apiKey: config.key, imageBase64, mimeType, context })
-    : await analyzeWithGemini({ apiKey: config.key, imageBase64, mimeType, context });
+
+  logger.info("Gemini vision request sent", {
+    model,
+    mimeType,
+    bytes: imageBuffer.byteLength
+  });
+
+  const responseContent = await requestGemini({
+    apiKey,
+    model,
+    imageBase64,
+    mimeType,
+    context
+  });
 
   try {
-    const parsed = parseJsonObject(response.content) as Partial<ProfessionalChartAnalysis>;
+    const parsed = parseJsonObject(responseContent) as Partial<ProfessionalChartAnalysis>;
     const normalized = normalizeAnalysis(parsed, context);
-    console.log("[analysis] JSON parsing result", {
-      parsed: true,
-      provider: response.provider,
-      model: response.model,
+    logger.info("Gemini JSON parsed", {
+      model,
       direction: normalized.direction,
       confidence: normalized.confidence,
       targetCount: normalized.targets.length
     });
     return normalized;
   } catch (error) {
-    console.error("[analysis] JSON parsing result", { parsed: false, error: getErrorMessage(error) });
+    logger.error("Gemini JSON parsing failed", { message: getErrorMessage(error) });
     throw new Error(`AI response was not valid JSON: ${getErrorMessage(error)}`);
   }
 }
 
-async function analyzeWithGroq({
+async function requestGemini({
   apiKey,
+  model,
   imageBase64,
   mimeType,
   context
 }: {
   apiKey: string;
+  model: string;
   imageBase64: string;
   mimeType: string;
   context: TradeContext;
-}): Promise<AiProviderResponse> {
-  if (Buffer.byteLength(imageBase64, "utf8") > 4 * 1024 * 1024) {
-    throw new Error("Chart image is too large for Groq vision. Please upload a PNG/JPG/WEBP under 3MB.");
-  }
+}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
-  const modelCandidates = getGroqModelCandidates();
-  let lastError = "";
-
-  for (const model of modelCandidates) {
-    console.log("[analysis] Groq vision request sent", { model });
-
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_completion_tokens: 1800,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text:
-                  "You are Trade X AI, a professional trading chart analyst. Analyze only the uploaded chart image and any user context. Return only valid JSON in the exact requested schema. Do not add markdown, prose outside JSON, placeholders, or financial guarantees.\n\n" +
-                  buildPrompt(context)
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${imageBase64}`
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text:
+                    "You are Trade X AI, a professional trading chart analyst. Analyze only the uploaded chart image and any user context. Return only valid JSON in the exact requested schema. Do not add markdown, prose outside JSON, placeholders, or financial guarantees."
+                },
+                {
+                  text: buildPrompt(context)
+                },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: imageBase64
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
           }
-        ]
-      })
-    });
+        })
+      }
+    );
 
     const rawResponse = await response.text();
-    console.log("[analysis] Groq response received", { ok: response.ok, status: response.status, model });
+    logger.info("Gemini response received", { ok: response.ok, status: response.status });
 
     if (!response.ok) {
-      lastError = extractGroqError(rawResponse) || `Groq request failed with status ${response.status}.`;
-      if (shouldTryNextModel(lastError, response.status, modelCandidates, model)) {
-        console.warn("[analysis] Retrying Groq vision with next supported model", { failedModel: model, reason: lastError });
-        continue;
-      }
-      throw new Error(lastError);
+      throw new Error(extractGeminiError(rawResponse) || `Gemini request failed with status ${response.status}.`);
     }
 
-    const groqResponse = JSON.parse(rawResponse) as GroqChatResponse;
-    const content = groqResponse.choices?.[0]?.message?.content?.trim();
+    const geminiResponse = JSON.parse(rawResponse) as GeminiGenerateResponse;
+    const content = geminiResponse.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
     if (!content) {
-      throw new Error("Groq returned an empty chart analysis response.");
+      throw new Error("Gemini returned an empty chart analysis response.");
     }
 
-    return { content, model, provider: "groq" };
-  }
-
-  throw new Error(lastError || "Groq chart analysis failed.");
-}
-
-async function analyzeWithGemini({
-  apiKey,
-  imageBase64,
-  mimeType,
-  context
-}: {
-  apiKey: string;
-  imageBase64: string;
-  mimeType: string;
-  context: TradeContext;
-}): Promise<AiProviderResponse> {
-  const model = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
-
-  console.log("[analysis] Gemini vision request sent", { model });
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text:
-                  "You are Trade X AI, a professional trading chart analyst. Analyze only the uploaded chart image and any user context. Return only valid JSON in the exact requested schema. Do not add markdown, prose outside JSON, placeholders, or financial guarantees."
-              },
-              {
-                text: buildPrompt(context)
-              },
-              {
-                inlineData: {
-                  mimeType,
-                  data: imageBase64
-                }
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json"
-        }
-      })
+    return content;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Gemini request timed out.");
     }
-  );
 
-  const rawResponse = await response.text();
-  console.log("[analysis] Gemini response received", { ok: response.ok, status: response.status });
-
-  if (!response.ok) {
-    throw new Error(extractGeminiError(rawResponse) || `Gemini request failed with status ${response.status}.`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const geminiResponse = JSON.parse(rawResponse) as GeminiGenerateResponse;
-  const content = geminiResponse.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim();
-  if (!content) {
-    throw new Error("Gemini returned an empty chart analysis response.");
-  }
-
-  return { content, model, provider: "gemini" };
 }
 
 function buildPrompt(context: TradeContext) {
@@ -350,53 +267,6 @@ Return exactly this JSON shape:
 }`;
 }
 
-function getApiKey(): AiKeyConfig | undefined {
-  const directKey =
-    process.env.GROQ_API_KEY ??
-    process.env.GEMINI_API_KEY ??
-    process.env.GOOGLE_API_KEY ??
-    process.env.API_KEY ??
-    process.env["API KEY"] ??
-    process.env.AI_API_KEY;
-  if (directKey?.trim()) return normalizeKeyConfig(directKey);
-
-  for (const envPath of [
-    path.join(process.cwd(), ".env"),
-    path.join(process.cwd(), "..", ".env"),
-    path.join(process.cwd(), "backend", ".env")
-  ]) {
-    try {
-      if (!fs.existsSync(envPath)) continue;
-      const envText = fs.readFileSync(envPath, "utf8");
-      const line = envText
-        .split(/\r?\n/)
-        .map((item) => item.trim())
-        .find((item) => /^(GROQ_API_KEY|GEMINI_API_KEY|GOOGLE_API_KEY|AI_API_KEY|API_KEY|API\s+KEY)\s*=/.test(item) || /^(gsk_|AIza)/.test(item));
-
-      if (!line) continue;
-
-      const value = line.includes("=")
-        ? line.split("=").slice(1).join("=").trim().replace(/^["']|["']$/g, "")
-        : line.trim().replace(/^["']|["']$/g, "");
-      if (value) return normalizeKeyConfig(value);
-    } catch (error) {
-      console.error("[analysis] Failed reading env file", { envPath, error: getErrorMessage(error) });
-    }
-  }
-
-  return undefined;
-}
-
-function normalizeKeyConfig(value: string): AiKeyConfig {
-  const cleaned = value.trim();
-  if (cleaned.startsWith("gsk_")) {
-    return { key: cleaned, provider: "groq" };
-  }
-
-  const geminiKey = cleaned.startsWith("sk-AIza") ? cleaned.slice(3) : cleaned;
-  return { key: geminiKey, provider: "gemini" };
-}
-
 function extractGeminiError(rawResponse: string) {
   try {
     const parsed = JSON.parse(rawResponse) as GeminiGenerateResponse;
@@ -404,31 +274,6 @@ function extractGeminiError(rawResponse: string) {
   } catch {
     return rawResponse.slice(0, 300);
   }
-}
-
-function extractGroqError(rawResponse: string) {
-  try {
-    const parsed = JSON.parse(rawResponse) as GroqChatResponse;
-    return parsed.error?.message;
-  } catch {
-    return rawResponse.slice(0, 300);
-  }
-}
-
-function getGroqModelCandidates() {
-  return Array.from(new Set([
-    process.env.GROQ_MODEL?.trim(),
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "qwen/qwen3.6-27b"
-  ].filter((model): model is string => Boolean(model))));
-}
-
-function shouldTryNextModel(message: string, status: number, models: string[], currentModel: string) {
-  const hasNextModel = models.indexOf(currentModel) < models.length - 1;
-  if (!hasNextModel) return false;
-  if (![400, 404].includes(status)) return false;
-
-  return /decommissioned|not supported|model.*not.*found|does not exist|invalid model/i.test(message);
 }
 
 function parseJsonObject(content: string) {

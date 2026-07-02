@@ -12,6 +12,9 @@ frontend/vite.config.js
 .env.*
 backend/.env
 frontend/.env*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 
 # Local Codex/agent files
 .agents/

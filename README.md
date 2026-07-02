@@ -1,92 +1,167 @@
 # Trade X
 
-Trade X is a professional trading journal and AI chart-analysis platform designed to help traders review performance, analyze trade setups, and improve decision-making with clear dashboard insights.
+Trade X is a trading journal and AI chart-analysis platform. Traders can record trades, review performance, track psychology, and upload chart screenshots for a structured Gemini-powered trade plan.
 
-## Features
+## Stack
 
-- Login screen with demo account option
-- Dashboard KPIs for trades, win rate, net profit, and risk/reward
-- Empty dashboard state until trades are added
-- Add Trade form with automatic profit/loss and risk/reward calculation
-- Trade history with filters
-- AI chart analyzer interface with Summary, Trade Plan, and Insights tabs
-- Strategy and psychology tracking pages
-- Backend-powered trade plan validation for AI chart analysis
-- Black and gold theme matched to the Trade X logo
+- Frontend: React, Vite, TypeScript, Tailwind CSS
+- Backend: Node.js, Express, TypeScript
+- AI provider: Gemini API
+- Frontend hosting: GitHub Pages
+- Backend hosting: Render
 
-## Tech Stack
+## Project Structure
 
-- React
-- Vite
-- TypeScript
-- Tailwind CSS
-- React Router
-- Node.js and Express backend
+```text
+frontend/
+  React + Vite website
+backend/
+  Express API for auth, trades, and AI chart analysis
+render.yaml
+  Render blueprint for the backend service
+```
 
-## Run Locally
+This repository currently uses `frontend/` and `backend/`. If frontend and backend are split into separate GitHub repositories later, keep the same commands inside each repository.
 
-Install dependencies:
+## Local Development
+
+1. Install dependencies from the repository root:
 
 ```bash
 npm install
 ```
 
-Start the full local app for development:
+2. Create backend environment file:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set:
+
+```text
+GEMINI_API_KEY=your_gemini_key
+JWT_SECRET=any_long_random_value
+```
+
+3. Create frontend environment file:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+For local development:
+
+```text
+VITE_API_URL=http://127.0.0.1:5000/api
+```
+
+4. Start both apps:
 
 ```bash
 npm run dev --workspace backend
 npm run dev --workspace frontend
 ```
 
-Open:
+Open the frontend at:
 
 ```text
 http://127.0.0.1:5173
 ```
 
-The frontend uses `/api` and proxies requests to the backend during local development.
-
-## Production / One Website URL
-
-Trade X is configured as a full-stack app. After building, the Express backend serves:
-
-- The complete frontend website
-- All API routes under `/api`
-- AI chart analysis from the same domain
-
-Build and start:
-
-```bash
-npm run build
-npm start
-```
-
-Open:
+Backend health check:
 
 ```text
-http://127.0.0.1:5000
+http://127.0.0.1:5000/health
 ```
 
-For deployment, use the included `render.yaml` on Render. Add `GROQ_API_KEY` as a secret environment variable in the hosting dashboard.
+## Production Deployment
 
-## Project Structure
+### Backend on Render
+
+Create a new Render Web Service for the backend.
+
+Render settings:
 
 ```text
-frontend/
-  src/
-    components/
-    data/
-    lib/
-    pages/
-backend/
-  src/
-    routes/
-    services/
-    middleware/
+Root Directory: backend
+Build Command: npm install && npm run build
+Start Command: npm start
+Health Check Path: /health
 ```
 
-## Project Summary
+Required environment variables:
 
-Trade X combines trade journaling, performance tracking, and AI-assisted chart review in a modern dashboard experience. It is built for traders who want a simple way to record trades, evaluate risk/reward, review trade quality, and turn chart screenshots into structured analysis.
+```text
+NODE_ENV=production
+GEMINI_API_KEY=your_gemini_key
+JWT_SECRET=generate_a_long_random_secret
+FRONTEND_ORIGIN=https://dev-ali-hassan.github.io
+```
 
-Environment files such as `.env` are ignored and should not be committed.
+Optional environment variables:
+
+```text
+GEMINI_MODEL=gemini-1.5-flash
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+After Render deploys, copy the backend URL. It will look like:
+
+```text
+https://your-render-service.onrender.com
+```
+
+The API base URL for the frontend must include `/api`:
+
+```text
+https://your-render-service.onrender.com/api
+```
+
+### Frontend on GitHub Pages
+
+Set this GitHub repository variable before deploying the frontend:
+
+```text
+VITE_API_URL=https://your-render-service.onrender.com/api
+```
+
+The GitHub Actions workflow builds the frontend for GitHub Pages and injects `VITE_API_URL`.
+
+Frontend URL:
+
+```text
+https://dev-ali-hassan.github.io/Trade-X/
+```
+
+## Environment Variables
+
+Backend:
+
+```text
+GEMINI_API_KEY
+GEMINI_MODEL
+JWT_SECRET
+FRONTEND_ORIGIN
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+PORT
+NODE_ENV
+```
+
+Frontend:
+
+```text
+VITE_API_URL
+```
+
+Never commit `.env` files. Only `.env.example` files are safe to commit.
+
+## Production Notes
+
+- The backend listens on `process.env.PORT`, which Render provides automatically.
+- The backend exposes `GET /health` and `GET /api/health`.
+- CORS allows the GitHub Pages origin and local development origins.
+- Uploaded chart images are validated by file type and size.
+- Gemini API errors, missing keys, invalid uploads, backend downtime, and timeouts return user-friendly messages.

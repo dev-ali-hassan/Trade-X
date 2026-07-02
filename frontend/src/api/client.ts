@@ -1,10 +1,10 @@
 import axios from "axios";
 
-export const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || "";
-export const hasConfiguredApiBaseUrl = Boolean(configuredApiBaseUrl);
+export const configuredApiUrl = import.meta.env.VITE_API_URL?.trim() || "";
 
 export const api = axios.create({
-  baseURL: configuredApiBaseUrl || "/api"
+  baseURL: configuredApiUrl || "/api",
+  timeout: 45_000
 });
 
 api.interceptors.request.use((config) => {

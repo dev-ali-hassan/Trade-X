@@ -1,12 +1,20 @@
 services:
   - type: web
-    name: trade-x
+    name: trade-x-api
     runtime: node
+    rootDir: backend
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 22
-      - key: GROQ_API_KEY
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_ORIGIN
+        value: https://dev-ali-hassan.github.io
+      - key: GEMINI_API_KEY
         sync: false
+      - key: JWT_SECRET
+        generateValue: true
