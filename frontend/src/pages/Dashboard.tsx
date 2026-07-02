@@ -68,13 +68,14 @@ function Overview({ trades }: { trades: Trade[] }) {
     <section className="panel p-4 md:p-5">
       <SectionHeader title="Trading Overview" text="Based only on your saved trades." />
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card icon={Activity} label="Total Trades" value={String(trades.length)} helper={trades.length ? "Saved journal entries" : "Start your first trade journal"} />
+        <Card icon={Activity} label="Total Trades" value={String(trades.length)} helper={trades.length ? "Saved journal entries" : "Start your first trade journal"} showInsight={trades.length < 10} />
         <Card
           icon={LineChart}
           label="Win Rate"
           value={stats.completedTrades ? `${stats.winRate}%` : "--"}
           helper={stats.completedTrades ? "Based on completed trades" : "Need completed trade history"}
           tone="profit"
+          showInsight={trades.length < 10}
         />
         <Card
           icon={BadgeDollarSign}
@@ -82,6 +83,7 @@ function Overview({ trades }: { trades: Trade[] }) {
           value={trades.length ? formatMoney(stats.netProfit) : "$0.00"}
           helper={getProfitHelper(stats.netProfit, stats.completedTrades)}
           tone={stats.netProfit >= 0 ? "profit" : "loss"}
+          showInsight={trades.length < 10}
         />
         <Card
           icon={trades.length > 10 ? Target : ShieldCheck}
@@ -89,6 +91,7 @@ function Overview({ trades }: { trades: Trade[] }) {
           value={trades.length ? (trades.length > 10 ? `1:${stats.avgRiskReward.toFixed(2)}` : `${stats.disciplineScore}%`) : "--"}
           helper={stats.completedTrades ? "Based on completed trades" : "Complete trades to calculate"}
           tone="ai"
+          showInsight={trades.length < 10}
         />
       </div>
     </section>
@@ -317,13 +320,15 @@ function Card({
   label,
   value,
   helper,
-  tone = "neutral"
+  tone = "neutral",
+  showInsight = true
 }: {
   icon: typeof Activity;
   label: string;
   value: string;
   helper: string;
   tone?: "profit" | "loss" | "ai" | "neutral";
+  showInsight?: boolean;
 }) {
   const colors = {
     profit: {
@@ -365,12 +370,16 @@ function Card({
       <p className="mt-4 text-2xl font-bold tracking-tight">{value}</p>
       <p className={`mt-1.5 text-xs font-semibold ${color.text}`}>{helper}</p>
 
-      <div className="my-3 h-px bg-line/80" />
+      {showInsight && (
+        <>
+          <div className="my-3 h-px bg-line/80" />
 
-      <div className="flex items-start gap-2 text-xs leading-5 text-slate-400">
-        <CheckCircle2 className={`mt-0.5 shrink-0 ${color.text}`} size={14} />
-        <p>{getCardInsight(label, value)}</p>
-      </div>
+          <div className="flex items-start gap-2 text-xs leading-5 text-slate-400">
+            <CheckCircle2 className={`mt-0.5 shrink-0 ${color.text}`} size={14} />
+            <p>{getCardInsight(label, value)}</p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
