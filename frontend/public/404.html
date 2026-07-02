@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trade X</title>
     <script>
-      window.location.replace("/Trade-X/");
+      const base = "/Trade-X/";
+      const path = window.location.pathname.replace(base, "").replace(/^\/+/, "");
+      const hash = window.location.hash || (path ? `#/${path}` : "#/");
+      window.location.replace(`${base}${hash}`);
     </script>
   </head>
   <body>

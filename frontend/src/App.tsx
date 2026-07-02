@@ -169,14 +169,15 @@ export default function App() {
           <div className="px-4 py-3 md:px-10 md:py-4">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/add-trade" element={<AddTrade />} />
-              <Route path="/analysis" element={<Analysis />} />
-              <Route path="/ai-analysis" element={<Analysis />} />
-              <Route path="/trade-rating" element={<TradeRating />} />
-              <Route path="/history" element={<TradeHistory />} />
-              <Route path="/strategies" element={<Strategies />} />
-              <Route path="/psychology" element={<Psychology />} />
-              <Route path="/auth" element={<Auth onEnter={setSession} />} />
+              <Route path="/add-trade/*" element={<AddTrade />} />
+              <Route path="/analysis/*" element={<Analysis />} />
+              <Route path="/ai-analysis/*" element={<Analysis />} />
+              <Route path="/trade-rating/*" element={<TradeRating />} />
+              <Route path="/history/*" element={<TradeHistory />} />
+              <Route path="/strategies/*" element={<Strategies />} />
+              <Route path="/psychology/*" element={<Psychology />} />
+              <Route path="/auth/*" element={<Auth onEnter={setSession} />} />
+              <Route path="*" element={<Dashboard />} />
             </Routes>
           </div>
         </main>
