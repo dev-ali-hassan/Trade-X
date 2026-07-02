@@ -178,6 +178,7 @@ function WinLossChart({ trades }: { trades: Trade[] }) {
 function MonthlyPerformance({ trades }: { trades: Trade[] }) {
   const completedTrades = trades.filter((trade) => trade.result !== "Open");
   const totalProfit = completedTrades.reduce((sum, trade) => sum + trade.profit, 0);
+  const showMonthlyHint = completedTrades.length < 5;
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((month) => ({
     month,
     profit: 0
@@ -232,10 +233,12 @@ function MonthlyPerformance({ trades }: { trades: Trade[] }) {
           </div>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-2 border-t border-line/80 pt-3 text-xs text-slate-500">
-        <Info size={14} />
-        <span>Keep trading to see your monthly performance trend.</span>
-      </div>
+      {showMonthlyHint && (
+        <div className="mt-2 flex items-center gap-2 border-t border-line/80 pt-3 text-xs text-slate-500">
+          <Info size={14} />
+          <span>Complete 5 trades to see your monthly performance trend.</span>
+        </div>
+      )}
     </section>
   );
 }
