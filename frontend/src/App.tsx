@@ -52,6 +52,8 @@ const navGroups = [
   }
 ];
 
+const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
 export default function App() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -108,7 +110,7 @@ export default function App() {
       <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
         <aside className="hidden border-r border-line bg-[#080808] px-6 py-5 lg:block">
           <div className="mb-7">
-            <img src="/logo.png" alt="Logo" className="h-auto w-48 object-contain" />
+            <img src={logoSrc} alt="Logo" className="h-auto w-48 object-contain" />
           </div>
 
           <nav className="space-y-7">
@@ -149,7 +151,7 @@ export default function App() {
                 >
                   <Menu size={18} />
                 </button>
-                <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+                <img src={logoSrc} alt="Logo" className="h-10 w-auto object-contain" />
               </div>
               <ProgressLine steps={progressSteps} />
               <div className="flex min-w-0 items-center gap-3">
@@ -183,7 +185,7 @@ export default function App() {
         <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm lg:hidden" onClick={() => setMobileMenuOpen(false)}>
           <aside className="h-full w-[82vw] max-w-sm border-r border-line bg-[#080808] p-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-6 flex items-center justify-between">
-              <img src="/logo.png" alt="Logo" className="h-auto w-36 object-contain" />
+              <img src={logoSrc} alt="Logo" className="h-auto w-36 object-contain" />
               <button className="rounded-lg border border-line p-2 text-slate-400" onClick={() => setMobileMenuOpen(false)}>
                 <ChevronRight size={18} />
               </button>

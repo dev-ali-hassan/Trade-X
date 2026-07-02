@@ -30,7 +30,7 @@ export function Dashboard() {
         <WinLossChart trades={trades} />
         <MonthlyPerformance trades={trades} />
       </section>
-      <LearningCoach tradeCount={trades.length} trades={trades} />
+      <LearningCoach tradeCount={trades.length} trades={trades} onAnalyze={() => navigate("/ai-analysis")} />
     </div>
   );
 }
@@ -249,7 +249,7 @@ function LegendRow({ label, value, color }: { label: string; value: string; colo
   );
 }
 
-function LearningCoach({ tradeCount, trades }: { tradeCount: number; trades: Trade[] }) {
+function LearningCoach({ tradeCount, trades, onAnalyze }: { tradeCount: number; trades: Trade[]; onAnalyze: () => void }) {
   const isExperienced = tradeCount > 10;
   const strongest = isExperienced ? getStrongestSetup(trades) : null;
   const mistake = isExperienced ? getCommonMistake(trades) : null;
@@ -303,7 +303,7 @@ function LearningCoach({ tradeCount, trades }: { tradeCount: number; trades: Tra
               Trade-X needs more data to understand your trading style. Complete 10 trades to unlock stronger personal coaching.
             </p>
           )}
-          <button className="primary-button mt-5 w-full" onClick={() => (window.location.href = "/ai-analysis")}>
+          <button className="primary-button mt-5 w-full" onClick={onAnalyze}>
             Start First Analysis
           </button>
         </div>

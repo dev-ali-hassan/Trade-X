@@ -6,6 +6,8 @@ type AuthProps = {
   onEnter: Dispatch<SetStateAction<LocalSession | null>>;
 };
 
+const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
 export function Auth({ onEnter }: AuthProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +32,7 @@ export function Auth({ onEnter }: AuthProps) {
     <div className="grid min-h-screen place-items-center bg-ink px-4 py-10 text-slate-100">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center">
-          <img src="/logo.png" alt="Logo" className="h-auto w-56 object-contain" />
+          <img src={logoSrc} alt="Logo" className="h-auto w-56 object-contain" />
         </div>
 
         <form className="panel p-6" onSubmit={submit}>
